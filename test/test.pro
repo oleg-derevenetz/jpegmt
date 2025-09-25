@@ -19,8 +19,8 @@ else {
 ROOT_DIR = ..
 include($${ROOT_DIR}/Libs.pri)
 
-INCLUDEPATH += $${HELPER_LIB_DIR}/include
-LIBS += -L$${HELPER_LIB_DIR}/$${BUILD_TYPE} -lhelper
+INCLUDEPATH += $${HELPER_INCLUDE_DIR}
+LIBS += -L$${HELPER_LIB_DIR} -lhelper
 
 INCLUDEPATH += $${ROOT_DIR}/lib/Jpeg/include
 LIBS += -L$${ROOT_DIR}/lib/Jpeg/$${BUILD_TYPE} -ljpegmt

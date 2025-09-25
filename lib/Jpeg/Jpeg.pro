@@ -24,7 +24,7 @@ win32-msvc* {
 ROOT_DIR = ../..
 include($${ROOT_DIR}/Libs.pri)
 
-INCLUDEPATH += $${HELPER_LIB_DIR}/include include
+INCLUDEPATH += $${HELPER_INCLUDE_DIR} include
 
 SOURCES += \
     src/Encoder/JpegEncoder.cpp \
