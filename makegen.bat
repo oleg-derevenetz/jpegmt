@@ -1,0 +1,6 @@
+@echo off
+set PROJECT=jpeg
+rem @echo Generating makefiles...
+rem qmake %PROJECT%.pro -r CONFIG+=debug_and_release
+@echo Generating solutions...
+qmake %PROJECT%.pro -r -tp vc -config force_debug_info -config msvc_mp

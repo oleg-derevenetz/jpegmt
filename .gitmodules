@@ -1,0 +1,3 @@
+[submodule "lib/Helper"]
+	path = lib/Helper
+	url = git@gitlab.inobitec.com:cpp-chassis/helper.git
