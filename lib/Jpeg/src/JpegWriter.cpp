@@ -98,7 +98,7 @@ bool Writer::writeFrameHeader(const ImageMetaData& imageMetaData)
   std::vector<Component> components = imageComponents(imageMetaData);
   std::vector<FrameHeader::ComponentInfo> componentInfo;
 
-  for (int i = 0; i < components.size(); i++)
+  for (size_t i = 0; i < components.size(); i++)
   {
     const Component& c = components.at(i);
     componentInfo.push_back(FrameHeader::ComponentInfo(c.m_id, c.m_hSamplingFactor, c.m_vSamplingFactor, c.m_quantizationTableIndex));
@@ -141,7 +141,7 @@ bool Writer::writeScanHeader(const ImageMetaData& imageMetaData)
   std::vector<Component> components = imageComponents(imageMetaData);
   std::vector<ScanHeader::ComponentInfo> componentInfo;
 
-  for (int i = 0; i < components.size(); i++)
+  for (size_t i = 0; i < components.size(); i++)
   {
     const Component& c = components.at(i);
     componentInfo.push_back(ScanHeader::ComponentInfo(c.m_id, c.m_huffmanTableIndex, c.m_huffmanTableIndex));
@@ -195,7 +195,7 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
   std::vector<EncoderBuffer::MetaData::ComponentInfo> componentInfo;
   std::vector<int> componentQuantizationTableIndices;
   std::vector<int> componentHuffmanEncoderIndices;
-  for(int i = 0; i < components.size(); i++)
+  for(size_t i = 0; i < components.size(); i++)
   {
     const Component& component = components.at(i);
     EncoderBuffer::MetaData::ComponentInfo info;
@@ -234,7 +234,7 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
     bufferSimdBlocks = 1 + ((encoderBufferMetaData.computeImageSizeInMcu(imageMetaData.m_size).m_width - 1) >> encoderBufferMetaData.m_simdLengthLog2);
 #endif
   int bufferCount = encoderBufferMetaData.computeImageBufferCount(imageMetaData.m_size, bufferSimdBlocks);
-  Encoder encoder(
+  alignas(32) Encoder encoder(
     std::vector<QuantizationTable>{m_luminanceQuantizationTable, m_chrominanceQuantizationTable}, componentQuantizationTableIndices,
     std::vector<HuffmanEncoder>{{m_luminanceDcHuffmanTable, m_luminanceAcHuffmanTable}, {m_chrominanceDcHuffmanTable, m_chrominanceAcHuffmanTable}},
     componentHuffmanEncoderIndices);
@@ -252,7 +252,7 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
   };
   LastBufferInfo* threadLastBufferInfo = new LastBufferInfo[nThreads];
 
-  ThreadPool::WorkerFunction worker = [this, imageMetaData, pixels, options, encoder, encoderBufferMetaData, bufferSimdBlocks, quantizationBuffer, blocksPerBuffer, threadLastBufferInfo, &compressedParts](int threadIndex, int64_t i0, int64_t i1)
+  ThreadPool::WorkerFunction worker = [this, imageMetaData, pixels, options, &encoder /* by reference to keep alignment */, encoderBufferMetaData, bufferSimdBlocks, quantizationBuffer, blocksPerBuffer, threadLastBufferInfo, &compressedParts](int threadIndex, int64_t i0, int64_t i1)
     {
       EncoderBuffer encoderBuffer(encoderBufferMetaData, bufferSimdBlocks);
       std::vector<int> lastDc(encoderBufferMetaData.m_components.size(), 0);
@@ -283,7 +283,7 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
         lastBufferInfo.mutex.unlock();
 
         int16_t (*lastQuantizedMcu)[Dct::BlockSize2] = lastBufferQuantized + (bufferMcuCount - 1) * encoderBufferMetaData.getMcuBlockCount();
-        for (int i = 0; i < encoderBufferMetaData.m_components.size(); i++)
+        for (size_t i = 0; i < encoderBufferMetaData.m_components.size(); i++)
         {
           EncoderBuffer::MetaData::Component c = encoderBufferMetaData.getComponent(i);
           lastDc[i] = lastQuantizedMcu[c.m_blockOffset + c.m_blockCount - 1][0];

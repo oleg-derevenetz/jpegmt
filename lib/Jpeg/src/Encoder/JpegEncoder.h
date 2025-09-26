@@ -44,7 +44,7 @@ private:
   std::vector<int> m_componentQuantizationTableIndices;
   std::vector<HuffmanEncoder> m_huffmanEncoders;
   std::vector<int> m_componentHuffmanEncoderIndices;
-  std::vector<Quantizer> m_quantizers;
+  alignas(32) std::vector<Quantizer> m_quantizers;
   int m_storingOrder[Dct::BlockSize2];
 };
 

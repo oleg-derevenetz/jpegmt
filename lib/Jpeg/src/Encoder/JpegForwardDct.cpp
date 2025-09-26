@@ -55,7 +55,7 @@ static void processDimension(const int32_t (*values)[SimdSize], int32_t (*result
 {
   static_assert(passNumber == 1 || passNumber == 2, "invalid pass number");
   typedef Platform::Cpu::SIMD<int32_t, SimdSize> SimdHelper;
-  typedef SimdHelper::Type SimdType;
+  typedef typename SimdHelper::Type SimdType;
   using namespace Platform::Cpu::int32;
 
   assert(Dct::BlockSize == 8);
@@ -192,15 +192,14 @@ static void processDimension(const int16_t (*values)[SimdSize], int16_t (*result
     store<SimdSize, passNumber, quantizationMode>(result, x, 0, passNumber == 1 ? ((tmp10 + tmp11) << PASS1_BITS) : (tmp10 + tmp11 + half) >> PASS1_BITS, quantizer);
     store<SimdSize, passNumber, quantizationMode>(result, x, 4, passNumber == 1 ? ((tmp10 - tmp11) << PASS1_BITS) : (tmp10 - tmp11 + half) >> PASS1_BITS, quantizer);
 
-    ExtendedSimdType z0ext = Int16Helper::mulExtended(tmp12 + tmp13, FIX_0_541196100);
-
     constexpr int descaleShift = passNumber == 1 ? CONST_BITS - PASS1_BITS : CONST_BITS + PASS1_BITS;
 #if 0
-    store<SimdSize, passNumber, quantizationMode>(result, x, 2, (z0ext + SimdHelper::mulExtended(tmp13,  FIX_0_765366865)).round<descaleShift>(), quantizer);
-    store<SimdSize, passNumber, quantizationMode>(result, x, 6, (z0ext + SimdHelper::mulExtended(tmp12, -FIX_1_847759065)).round<descaleShift>(), quantizer);
+    ExtendedSimdType z0ext = Int16Helper::mulExtended(tmp12 + tmp13, FIX_0_541196100);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 2, (z0ext + SimdHelper::mulExtended(tmp13,  FIX_0_765366865)).template round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 6, (z0ext + SimdHelper::mulExtended(tmp12, -FIX_1_847759065)).template round<descaleShift>(), quantizer);
 #else
-    store<SimdSize, passNumber, quantizationMode>(result, x, 2, Int16Helper::template mulAdd<FIX_0_541196100, FIX_0_541196100 + FIX_0_765366865>(tmp12, tmp13).round<descaleShift>(), quantizer);
-    store<SimdSize, passNumber, quantizationMode>(result, x, 6, Int16Helper::template mulAdd<FIX_0_541196100 - FIX_1_847759065, FIX_0_541196100>(tmp12, tmp13).round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 2, Int16Helper::template mulAdd<FIX_0_541196100, FIX_0_541196100 + FIX_0_765366865>(tmp12, tmp13).template round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 6, Int16Helper::template mulAdd<FIX_0_541196100 - FIX_1_847759065, FIX_0_541196100>(tmp12, tmp13).template round<descaleShift>(), quantizer);
 #endif
 
     SimdType z1 = tmp4 + tmp7;
@@ -221,20 +220,20 @@ static void processDimension(const int16_t (*values)[SimdSize], int16_t (*result
     z3ext += z5ext;
     z4ext += z5ext;
 
-    store<SimdSize, passNumber, quantizationMode>(result, x, 7, (tmp4ext + z1ext + z3ext).round<descaleShift>(), quantizer);
-    store<SimdSize, passNumber, quantizationMode>(result, x, 5, (tmp5ext + z2ext + z4ext).round<descaleShift>(), quantizer);
-    store<SimdSize, passNumber, quantizationMode>(result, x, 3, (tmp6ext + z2ext + z3ext).round<descaleShift>(), quantizer);
-    store<SimdSize, passNumber, quantizationMode>(result, x, 1, (tmp7ext + z1ext + z4ext).round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 7, (tmp4ext + z1ext + z3ext).template round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 5, (tmp5ext + z2ext + z4ext).template round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 3, (tmp6ext + z2ext + z3ext).template round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 1, (tmp7ext + z1ext + z4ext).template round<descaleShift>(), quantizer);
 #else
     SimdType z5 = z3 + z4;
     ExtendedSimdType w7 = Int16Helper::template mulAdd<FIX_0_298631336, FIX_1_175875602>(tmp4, z5) + Int16Helper::template mulAdd<-FIX_0_899976223, -FIX_1_961570560>(z1, z3);
-    store<SimdSize, passNumber, quantizationMode>(result, x, 7, w7.round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 7, w7.template round<descaleShift>(), quantizer);
     ExtendedSimdType w5 = Int16Helper::template mulAdd<FIX_2_053119869, FIX_1_175875602>(tmp5, z5) + Int16Helper::template mulAdd<-FIX_2_562915447, -FIX_0_390180644>(z2, z4);
-    store<SimdSize, passNumber, quantizationMode>(result, x, 5, w5.round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 5, w5.template round<descaleShift>(), quantizer);
     ExtendedSimdType w3 = Int16Helper::template mulAdd<FIX_3_072711026, FIX_1_175875602>(tmp6, z5) + Int16Helper::template mulAdd<-FIX_2_562915447, -FIX_1_961570560>(z2, z3);
-    store<SimdSize, passNumber, quantizationMode>(result, x, 3, w3.round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 3, w3.template round<descaleShift>(), quantizer);
     ExtendedSimdType w1 = Int16Helper::template mulAdd<FIX_1_501321110, FIX_1_175875602>(tmp7, z5) + Int16Helper::template mulAdd<-FIX_0_899976223, -FIX_0_390180644>(z1, z4);
-    store<SimdSize, passNumber, quantizationMode>(result, x, 1, w1.round<descaleShift>(), quantizer);
+    store<SimdSize, passNumber, quantizationMode>(result, x, 1, w1.template round<descaleShift>(), quantizer);
 #endif
   }
 }
@@ -504,7 +503,7 @@ void performDct(int simdBlockCount, const EncoderBuffer::MetaData& bufferMetaDat
 
   for (int n = 0; n < simdBlockCount; n++)
   {
-    for (int i = 0; i < bufferMetaData.m_components.size(); i++)
+    for (size_t i = 0; i < bufferMetaData.m_components.size(); i++)
     {
       const EncoderBuffer::MetaData::Component& component = bufferMetaData.m_components.at(i);
       const Quantizer& quantizer = quantizers[componentQuantizerIndices[i]];

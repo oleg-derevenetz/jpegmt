@@ -1,6 +1,7 @@
 #include "ImageUtils.h"
 
 #include <cassert>
+#include <cmath>
 
 #include <Jpeg/JpegImageMetaData.h>
 #include <Jpeg/Rgb.h>

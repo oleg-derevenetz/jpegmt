@@ -2,6 +2,8 @@ TARGET = jpegtest
 CONFIG   += console
 CONFIG   -= app_bundle
 
+QT -= core gui
+
 TEMPLATE = app
 
 CONFIG += precompile_header
@@ -16,6 +18,8 @@ else {
   CONFIG(release, debug|release) : BUILD_TYPE = release
 }
 
+DESTDIR = $${BUILD_TYPE}
+
 ROOT_DIR = ..
 include($${ROOT_DIR}/Libs.pri)
 
@@ -25,18 +29,20 @@ LIBS += -L$${HELPER_LIB_DIR} -lhelper
 INCLUDEPATH += $${ROOT_DIR}/lib/Jpeg/include
 LIBS += -L$${ROOT_DIR}/lib/Jpeg/$${BUILD_TYPE} -ljpegmt
 
-defined(LIBJPEG_INCLUDE_DIR, var) : defined(LIBJPEG_LIB_DIR, var) {
+defined(LIBJPEG_LIB_NAME, var) {
     DEFINES += WITH_LIBJPEG
-    INCLUDEPATH += $${LIBJPEG_INCLUDE_DIR}
-    LIBS += -L$${LIBJPEG_LIB_DIR} -ljpeg-static
+    defined(LIBJPEG_INCLUDE_DIR, var) : INCLUDEPATH += $${LIBJPEG_INCLUDE_DIR}
+    defined(LIBJPEG_LIB_DIR, var) : LIBS += -L$${LIBJPEG_LIB_DIR}
+    LIBS += -l$${LIBJPEG_LIB_NAME}
     SOURCES += src/JpegLibWrapper.cpp
     HEADERS += src/JpegLibWrapper.h
 }
 
-defined(LIBPNG_INCLUDE_DIR, var) : defined(LIBPNG_LIB_DIR, var) : defined(LIBPNG_LIB_NAME, var) {
+defined(LIBPNG_LIB_NAME, var) {
     DEFINES += WITH_LIBPNG
-    INCLUDEPATH += $${LIBPNG_INCLUDE_DIR}
-    LIBS += -L$${LIBPNG_LIB_DIR} -l$${LIBPNG_LIB_NAME}
+    defined(LIBPNG_INCLUDE_DIR, var) : INCLUDEPATH += $${LIBPNG_INCLUDE_DIR}
+    defined(LIBPNG_LIB_DIR, var) : LIBS += -L$${LIBPNG_LIB_DIR}
+    LIBS += -l$${LIBPNG_LIB_NAME}
     defined(ZLIB_LIB_DIR, var) : LIBS += -L$${ZLIB_LIB_DIR}
     LIBS += -l$${ZLIB_LIB_NAME}
 }

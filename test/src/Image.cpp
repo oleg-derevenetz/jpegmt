@@ -2,8 +2,10 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 
+#include <Helper/Platform/Cpu/cpu.h>
 #include <Helper/Platform/os.h>
 
 #ifdef WITH_LIBJPEG
@@ -30,6 +32,8 @@ Image Image::create(int width, int height, Jpeg::ImageMetaData::Format format, i
   case Jpeg::ImageMetaData::Bgra32:
     metaData.m_scanlineBytes = width * 4;
     break;
+  case Jpeg::ImageMetaData::Invalid:
+    return Image();
   }
 
   image.allocPixels(alignment);
@@ -44,12 +48,12 @@ bool Image::isValid() const
 #ifndef PLATFORM_OS_WINDOWS
 static void* _aligned_malloc(size_t size, size_t alignment)
 {
-  return std::aligned_alloc(alignment, size);
+  return aligned_alloc(alignment, size);
 }
 
 static void _aligned_free(void* p)
 {
-  std::free(p);
+  free(p);
 }
 #endif
 
@@ -76,7 +80,7 @@ const char* Image::scanline(int y) const
 
 Image Image::copy() const
 {
-  Image image{m_metaData};
+  Image image{m_metaData, nullptr};
   image.allocPixels(m_alignment);
   memcpy(image.m_pixels.get(), m_pixels.get(), m_metaData.m_scanlineBytes * m_metaData.m_size.m_height);
   return image;
@@ -245,6 +249,7 @@ static bool checkFileFormat(std::filebuf& file, Image::Format format)
   return false;
 }
 
+#ifdef WITH_LIBJPEG
 namespace
 {
 
@@ -321,11 +326,13 @@ static int alignedScanlineSize(int scanlineSize, int alignment)
 {
   return scanlineSize > 0 ? (1 + (scanlineSize - 1) / alignment) * alignment : scanlineSize;
 }
+#endif
 
 static Image loadJpegImage(std::filebuf& file, int rowAlignment)
 {
 #ifndef WITH_LIBJPEG
   (void)file;
+  (void)rowAlignment;
   printf("reading jpeg format is not supported\n");
   return Image();
 #else

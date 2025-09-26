@@ -42,7 +42,7 @@ struct RgbToYcc<int16_t, SimdLength, cbcrAddFractionBits> : public Rgb8ToYcc
     constexpr int32_t ybgWeight = fixedPointFromFloat(0.25000);
     constexpr int32_t yrgWeight = ygWeight - ybgWeight;
 
-    return (SimdHelper::mulAdd<yrWeight, yrgWeight>(r, g) + SimdHelper::mulAdd<ybWeight, ybgWeight>(b, g) + ExtendedSimdType::populate(yOffset)).descale<fixedPointFractionBits>();
+    return (SimdHelper::template mulAdd<yrWeight, yrgWeight>(r, g) + SimdHelper::template mulAdd<ybWeight, ybgWeight>(b, g) + ExtendedSimdType::populate(yOffset)).template descale<fixedPointFractionBits>();
   }
 
   static SimdType cb(SimdType r, SimdType g, SimdType b, int32_t bias = 0)
@@ -51,7 +51,7 @@ struct RgbToYcc<int16_t, SimdLength, cbcrAddFractionBits> : public Rgb8ToYcc
     if (cbcrAddFractionBits)
       offset += bias;
     // TODO: unsigned extend()
-    return (SimdHelper::mulAdd<cbrWeight, cbgWeight>(r, g) + (SimdHelper::extend(b) << (fixedPointFractionBits - 1)) + ExtendedSimdType::populate(offset)).descale<fixedPointFractionBits + cbcrAddFractionBits>();
+    return (SimdHelper::template mulAdd<cbrWeight, cbgWeight>(r, g) + (SimdHelper::extend(b) << (fixedPointFractionBits - 1)) + ExtendedSimdType::populate(offset)).template descale<fixedPointFractionBits + cbcrAddFractionBits>();
   }
 
   static SimdType cr(SimdType r, SimdType g, SimdType b, int32_t bias = 0)
@@ -60,7 +60,7 @@ struct RgbToYcc<int16_t, SimdLength, cbcrAddFractionBits> : public Rgb8ToYcc
     if (cbcrAddFractionBits)
       offset += bias;
     // TODO: unsigned extend()
-    return (SimdHelper::mulAdd<crgWeight, crbWeight>(g, b) + (SimdHelper::extend(r) << (fixedPointFractionBits - 1)) + ExtendedSimdType::populate(offset)).descale<fixedPointFractionBits + cbcrAddFractionBits>();
+    return (SimdHelper::template mulAdd<crgWeight, crbWeight>(g, b) + (SimdHelper::extend(r) << (fixedPointFractionBits - 1)) + ExtendedSimdType::populate(offset)).template descale<fixedPointFractionBits + cbcrAddFractionBits>();
   }
 };
 

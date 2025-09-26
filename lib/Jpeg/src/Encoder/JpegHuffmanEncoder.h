@@ -23,6 +23,9 @@ public:
   static int64_t byteStuffingByteCount(const uint64_t* output, int64_t outputOffset);
   static int64_t byteStuffing(uint64_t* output, int64_t outputOffset, int64_t bytesToAdd);
 
+  static uint64_t* allocBitBuffer(int64_t wordCount);
+  static void freeBitBuffer(uint64_t* buffer);
+
   struct LookupTable
   {
     enum Type

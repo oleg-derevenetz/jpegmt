@@ -1,6 +1,7 @@
 #include "JpegEncoderBuffer.h"
 
 #include <cassert>
+#include <cstring>
 
 //#define DIRECT_YCC_COMPUTE
 
@@ -51,7 +52,7 @@ static Rgb8ToYccTable rgb8ToYcc = makeRgb8ToYccTable();
 EncoderBuffer::MetaData::MetaData(const std::vector<ComponentInfo>& components)
 {
   int blockOffset = 0;
-  for (int i = 0; i < components.size(); i++)
+  for (size_t i = 0; i < components.size(); i++)
   {
     Component component;
 
@@ -330,15 +331,17 @@ static void rgbaToYccComponent2x2(const uint8_t* rgb, int width, int height, int
 }
 
 #ifndef FORCE_INLINE
-#ifdef Q_CC_MSVC
+#ifdef PLATFORM_COMPILER_MSVC
 #define FORCE_INLINE __forceinline
+#elif defined(PLATFORM_COMPILER_GNU)
+#define FORCE_INLINE __attribute__((always_inline))
 #else
-#define FORCE_INLINE inline
+#define FORCE_INLINE
 #endif
 #endif
 
 template<ImageMetaData::Format rgbFormat, bool evenLinePadding, int SimdLength, typename T>
-FORCE_INLINE static void convert2x2RgbaToYcbr411(T (*dst)[Dct::BlockSize2][SimdLength], int i, int j, int n, uint32_t rgb0, uint32_t rgb1, uint32_t rgb2, uint32_t rgb3, int bias)
+FORCE_INLINE static inline void convert2x2RgbaToYcbr411(T (*dst)[Dct::BlockSize2][SimdLength], int i, int j, int n, uint32_t rgb0, uint32_t rgb1, uint32_t rgb2, uint32_t rgb3, int bias)
 {
   constexpr int yComponentOffset = 0;
   constexpr int cbComponentOffset = 4;
@@ -465,19 +468,19 @@ static void grayScanlineSimdToYComponentSquare(const uint8_t* pixels, int scanli
 }
 
 template<>
-static void grayScanlineSimdToYComponent<Dct::BlockSize, int16_t>(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, int16_t (*dst)[Dct::BlockSize])
+void grayScanlineSimdToYComponent<Dct::BlockSize, int16_t>(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, int16_t (*dst)[Dct::BlockSize])
 {
   grayScanlineSimdToYComponentSquare(pixels, scanlineLength, mcu, count, dst);
 }
 
 template<>
-static void grayScanlineSimdToYComponent<Dct::BlockSize, int32_t>(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, int32_t (*dst)[Dct::BlockSize])
+void grayScanlineSimdToYComponent<Dct::BlockSize, int32_t>(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, int32_t (*dst)[Dct::BlockSize])
 {
   grayScanlineSimdToYComponentSquare(pixels, scanlineLength, mcu, count, dst);
 }
 
 template<>
-FORCE_INLINE static void grayScanlineSimdToYComponent<Dct::BlockSize*2, int16_t>(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, int16_t (*dst)[Dct::BlockSize*2])
+FORCE_INLINE inline void grayScanlineSimdToYComponent<Dct::BlockSize*2, int16_t>(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, int16_t (*dst)[Dct::BlockSize*2])
 {
   using namespace Platform::Cpu;
   constexpr int SimdLength = Dct::BlockSize*2;
@@ -597,7 +600,7 @@ template<int SimdLength, typename DstType>
 static void loadRgbSimdLine(DstType* dst, const int32_t (*blocks)[2][Dct::BlockSize]);
 
 template<>
-static void loadRgbSimdLine<Dct::BlockSize>(Platform::Cpu::int32x8_t* dst, const int32_t (*src)[2][Dct::BlockSize])
+void loadRgbSimdLine<Dct::BlockSize>(Platform::Cpu::int32x8_t* dst, const int32_t (*src)[2][Dct::BlockSize])
 {
   constexpr int SimdLength = Dct::BlockSize;
 #if 1
@@ -635,7 +638,7 @@ void loadRgbSimdBlocks(Platform::Cpu::int32x8_t (*matrix)[Dct::BlockSize][2], co
 }
 
 template<>
-static void loadRgbSimdLine<Dct::BlockSize*2, Platform::Cpu::int32x8_t>(Platform::Cpu::int32x8_t* dst, const int32_t (*src)[2][Dct::BlockSize])
+void loadRgbSimdLine<Dct::BlockSize*2, Platform::Cpu::int32x8_t>(Platform::Cpu::int32x8_t* dst, const int32_t (*src)[2][Dct::BlockSize])
 {
   Platform::Cpu::int32x8_t (*matrix)[Dct::BlockSize][2] = (Platform::Cpu::int32x8_t (*)[Dct::BlockSize][2])dst;
   if (Platform::Cpu::SIMD<int32_t, 8>::isPointerAligned(src))
@@ -661,7 +664,7 @@ void loadRgbSimdBlocks(Platform::Cpu::int32x4_t (*matrix)[Dct::BlockSize][2], co
 }
 
 template<>
-static void loadRgbSimdLine<Dct::BlockSize, Platform::Cpu::int32x4_t>(Platform::Cpu::int32x4_t* dst, const int32_t (*src)[2][Dct::BlockSize])
+void loadRgbSimdLine<Dct::BlockSize, Platform::Cpu::int32x4_t>(Platform::Cpu::int32x4_t* dst, const int32_t (*src)[2][Dct::BlockSize])
 {
   Platform::Cpu::int32x4_t (*matrix)[Dct::BlockSize][2] = (Platform::Cpu::int32x4_t (*)[Dct::BlockSize][2])dst;
   if (Platform::Cpu::SIMD<int32_t, 4>::isPointerAligned(src))
@@ -677,7 +680,7 @@ static void loadRgbSimdLine<Dct::BlockSize, Platform::Cpu::int32x4_t>(Platform::
 }
 
 template<>
-static void loadRgbSimdLine<1, int32_t>(int32_t* dst, const int32_t (*src)[2][Dct::BlockSize])
+void loadRgbSimdLine<1, int32_t>(int32_t* dst, const int32_t (*src)[2][Dct::BlockSize])
 {
   memcpy(dst, src, sizeof(src[0]));
 }
@@ -759,7 +762,6 @@ struct RgbComponentExtractor<rgbFormat, int16_t, SimdLength>
   {
     using namespace Platform::Cpu;
     typedef SIMD<int32_t, SimdLength / 2> RgbSimdHelper;
-    typedef typename SIMD<int16_t, SimdLength>::Type SimdType;
     typename RgbComponent<SimdLength>::Type r8, g8, b8, a8;
 
     if (rgbFormat == ImageMetaData::Rgba32)
@@ -791,7 +793,6 @@ struct RgbComponentExtractor<rgbFormat, int32_t, SimdLength>
   {
     using namespace Platform::Cpu;
     typedef SIMD<int32_t, SimdLength> RgbSimdHelper;
-    typedef typename SIMD<int16_t, SimdLength>::Type SimdType;
     typename RgbComponent<SimdLength>::Type r8, g8, b8, a8;
 
     if (rgbFormat == ImageMetaData::Rgba32)
@@ -870,7 +871,7 @@ static void loadRgbSimdLine(Platform::Cpu::int8x32_t* r, Platform::Cpu::int8x32_
 #endif
 
 template<int SimdLength, typename T>
-FORCE_INLINE void rgbToYcbr(typename Platform::Cpu::SIMD<T, SimdLength>::Type r, typename Platform::Cpu::SIMD<T, SimdLength>::Type g, typename Platform::Cpu::SIMD<T, SimdLength>::Type b,
+FORCE_INLINE static inline void rgbToYcbr(typename Platform::Cpu::SIMD<T, SimdLength>::Type r, typename Platform::Cpu::SIMD<T, SimdLength>::Type g, typename Platform::Cpu::SIMD<T, SimdLength>::Type b,
   typename Platform::Cpu::SIMD<T, SimdLength>::Type& y, typename Platform::Cpu::SIMD<T, SimdLength>::Type& cb, typename Platform::Cpu::SIMD<T, SimdLength>::Type& cr)
 {
   y  = RgbToYcc<T, SimdLength, 0>::y(r, g, b);
@@ -1364,7 +1365,7 @@ void padComponentBuffers(const EncoderBuffer::MetaData& metaData, T* componentBu
   {
     for (int j = 0; j < Dct::BlockSize2; j++)
     {
-      for (int c = 0; c < metaData.m_components.size(); c++)
+      for (size_t c = 0; c < metaData.m_components.size(); c++)
         componentBuffers[(c * Dct::BlockSize2 + j) * metaData.m_simdLength + n] = 0;
     }
   }
@@ -1605,7 +1606,7 @@ void exportBlock<Dct::BlockSize*2, int16_t>(int16_t (*dst)[Dct::BlockSize2], con
     {
       int k0 = j * Dct::BlockSize;
       SimdHelper::template transpose2x8x8<true>((SimdType*)matrix, values[k0]);
-      int lowCount = std::min(Dct::BlockSize, count);
+      int lowCount = count < Dct::BlockSize ? count : Dct::BlockSize;
 
       for (int n = 0; n < lowCount; n++)
         SimdHelper::storeLow(dst[n * mcuBlocks] + k0, matrix[n]);
@@ -1655,7 +1656,7 @@ void exportBlocks(const EncoderBuffer::MetaData& metaData, int16_t (*dst)[Dct::B
   int mcuBlocks = metaData.m_mcuBlockCount;
   for (; count > 0; count -= SimdLength, buffers += mcuBlocks, dst += SimdLength * mcuBlocks)
   {
-    for (int c = 0; c < metaData.m_components.size(); c++)
+    for (size_t c = 0; c < metaData.m_components.size(); c++)
     {
       const EncoderBuffer::MetaData::Component& component = metaData.m_components.at(c);
 

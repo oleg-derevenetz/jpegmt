@@ -16,9 +16,15 @@ else {
   CONFIG(release, debug|release) : BUILD_TYPE = release
 }
 
+DESTDIR = $${BUILD_TYPE}
+
 win32-msvc* {
   CONFIG(debug, debug|release) : QMAKE_CXXFLAGS += -Ob1
   QMAKE_CXXFLAGS += /arch:AVX2
+}
+
+linux-g++* {
+  QMAKE_CXXFLAGS += -msse4.1 -mavx2 -Werror -Wno-ignored-attributes
 }
 
 ROOT_DIR = ../..

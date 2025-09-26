@@ -1,6 +1,7 @@
 #include "JpegEncoder.h"
 
 #include <cmath>
+#include <cstring>
 
 #include <Jpeg/JpegImageMetaData.h>
 
@@ -16,7 +17,7 @@ Encoder::Encoder(const std::vector<QuantizationTable>& quantizationTables, const
   m_quantizationTables(quantizationTables), m_componentQuantizationTableIndices(componentQuantizationTableIndices),
   m_huffmanEncoders(huffmanEncoders), m_componentHuffmanEncoderIndices(componentHuffmanEncoderIndices)
 {
-  for (int i = 0; i < m_quantizationTables.size(); i++)
+  for (size_t i = 0; i < m_quantizationTables.size(); i++)
     m_quantizers.push_back(Quantizer(m_quantizationTables.at(i)));
 
   for(int i = 0; i < Dct::BlockSize2; i++)
@@ -45,7 +46,7 @@ void Encoder::optimizeDummyBlocks(const EncoderBuffer::MetaData& encoderBufferMe
       if (mcuIndices[n].m_x != imageSizeInMcu.m_width - 1)
         continue;
 
-      for(int c = 0; c < encoderBufferMetaData.m_components.size(); c++)
+      for(size_t c = 0; c < encoderBufferMetaData.m_components.size(); c++)
       {
         const EncoderBuffer::MetaData::Component& component = encoderBufferMetaData.m_components.at(c);
         int hblocks = component.m_info.m_hBlocks;
@@ -75,7 +76,7 @@ void Encoder::optimizeDummyBlocks(const EncoderBuffer::MetaData& encoderBufferMe
       if (mcuIndices[n].m_y != imageSizeInMcu.m_height - 1)
         continue;
 
-      for (int c = 0; c < encoderBufferMetaData.m_components.size(); c++)
+      for (size_t c = 0; c < encoderBufferMetaData.m_components.size(); c++)
       {
         const EncoderBuffer::MetaData::Component& component = encoderBufferMetaData.m_components.at(c);
         int hblocks = component.m_info.m_hBlocks;
@@ -239,7 +240,7 @@ Encoder::BitBuffer Encoder::BitBuffer::merge(const std::vector<BitBuffer>& buffe
     return buffers.at(0);
 
   int64_t totalBits = 0;
-  for (int i = 0; i < buffers.size(); i++)
+  for (size_t i = 0; i < buffers.size(); i++)
     totalBits += buffers.at(i).m_bitCount;
 
   totalBits += (int64_t)(totalBits * reserveFraction);
@@ -249,7 +250,7 @@ Encoder::BitBuffer Encoder::BitBuffer::merge(const std::vector<BitBuffer>& buffe
     return BitBuffer();
 
   constexpr int wordBits = sizeof(merged.m_bits[0]) * 8;
-  for (int i = 1; i < buffers.size(); i++)
+  for (size_t i = 1; i < buffers.size(); i++)
   {
     int64_t dstw = merged.m_bitCount / wordBits;
     uint64_t* src = buffers.at(i).m_bits;
@@ -296,14 +297,14 @@ bool Encoder::BitBuffer::reserve(int64_t bitCount)
 
   int64_t bitsRequired = std::max<int64_t>(m_bitCount + bitCount, (int64_t)(m_bitCount * 1.5));
   int64_t wordsRequired = 1 + (bitsRequired - 1) / (sizeof(m_bits[0]) * 8);
-  uint64_t* words = (uint64_t*)malloc(wordsRequired * sizeof(words[0]));
+  uint64_t* words = HuffmanEncoder::allocBitBuffer(wordsRequired);
   if (!words)
     return false;
 
 //  assert(!m_bits || !m_bitCount);
   if (m_bits && m_bitCount)
     memcpy(words, m_bits, (1 + (m_bitCount - 1) / (sizeof(words[0]) * 8)) * sizeof(words[0]));
-  m_buffer = std::shared_ptr<uint64_t>(words, free);
+  m_buffer = std::shared_ptr<uint64_t>(words, HuffmanEncoder::freeBitBuffer);
   m_bits = words;
   m_wordsAllocated = wordsRequired;
   return true;

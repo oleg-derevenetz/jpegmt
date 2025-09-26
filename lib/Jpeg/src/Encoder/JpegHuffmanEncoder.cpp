@@ -119,14 +119,16 @@ HuffmanEncoder::HuffmanEncoder(const HuffmanTable& dcTable, const HuffmanTable& 
 }
 
 #ifndef FORCE_INLINE
-#ifdef Q_CC_MSVC
+#ifdef PLATFORM_COMPILER_MSVC
 #define FORCE_INLINE __forceinline
+#elif defined(PLATFORM_COMPILER_GNU)
+#define FORCE_INLINE __attribute__((always_inline))
 #else
-#define FORCE_INLINE inline
+#define FORCE_INLINE
 #endif
 #endif
 
-FORCE_INLINE static uint64_t toBigEndian(uint64_t source)
+FORCE_INLINE static inline uint64_t toBigEndian(uint64_t source)
 {
   return Platform::Cpu::byteOrder == Platform::Cpu::BigEndian ? source :
       ((source & 0x00000000000000ffULL) << 56)
@@ -139,7 +141,7 @@ FORCE_INLINE static uint64_t toBigEndian(uint64_t source)
     | ((source & 0xff00000000000000ULL) >> 56);
 }
 
-FORCE_INLINE static uint64_t fromBigEndian(uint64_t source)
+FORCE_INLINE static inline uint64_t fromBigEndian(uint64_t source)
 {
   return toBigEndian(source);
 }
@@ -496,7 +498,7 @@ int64_t HuffmanEncoder::encode(const int16_t* block, const int* mcuComponents, i
 #if !defined(DEBUG) && !defined(_DEBUG)
 FORCE_INLINE
 #endif
-static uint64_t toZigzagOrder(const int16_t* block, int16_t* zigzag)
+static inline uint64_t toZigzagOrder(const int16_t* block, int16_t* zigzag)
 {
   using namespace Platform::Cpu;
   typedef SIMD<int16_t, 8> SimdHelper;
@@ -637,12 +639,14 @@ static uint64_t reduce(Platform::Cpu::int16x16_t mask)
   return reduce(mask.lowPart() | mask.highPart());
 }
 
+#if 0
 static Platform::Cpu::int64x4_t reduce4x4(Platform::Cpu::int16x16_t mask)
 {
   using namespace Platform::Cpu;
   mask |= int16x16_t{uint64x4_t{mask} >> 32};
   return int64x4_t{mask | int16x16_t{uint64x4_t{mask} >> 16}} & int64x4_t::populate(0xffff);
 }
+#endif
 
 template <typename T>
 struct AcBitMask
@@ -671,7 +675,7 @@ void updateMaskBits(const AcBitMask<T>& bitMask, T acMask, T& bits0_15, T& bits1
     bits48_63 |= bitMask.bits_48_63.andNot(acMask);
 }
 
-template <int SimdLength> uint64_t getAcMask(const int16_t* block, int16_t* dst);
+template <int SimdLength> static uint64_t getAcMask(const int16_t* block, int16_t* dst);
 
 typedef AcBitMask<Platform::Cpu::int16x16_t> AcBitMaskx16;
 
@@ -681,7 +685,7 @@ static AcBitMaskx16 acBitMaskx16_2 = makeAcBitMask<Platform::Cpu::int16x16_t, 10
 static AcBitMaskx16 acBitMaskx16_3 = makeAcBitMask<Platform::Cpu::int16x16_t, 21, 34, 37, 47, 50, 56, 59, 61, 35, 36, 48, 49, 57, 58, 62, 63>();
 
 template<> 
-FORCE_INLINE static uint64_t getAcMask<16>(const int16_t* block, int16_t* dst)
+FORCE_INLINE inline uint64_t getAcMask<16>(const int16_t* block, int16_t* dst)
 {
   using namespace Platform::Cpu;
   int16x16_t bits0_15 = int16x16_t::zero(), bits16_31 = int16x16_t::zero(), bits32_47 = int16x16_t::zero(), bits48_63 = int16x16_t::zero();
@@ -721,7 +725,7 @@ static AcBitMaskx8 acBitMaskx8_6 = makeAcBitMask<Platform::Cpu::int16x8_t, 21, 3
 static AcBitMaskx8 acBitMaskx8_7 = makeAcBitMask<Platform::Cpu::int16x8_t, 35, 36, 48, 49, 57, 58, 62, 63>();
 
 template<>
-FORCE_INLINE static uint64_t getAcMask<8>(const int16_t* block, int16_t* dst)
+FORCE_INLINE inline uint64_t getAcMask<8>(const int16_t* block, int16_t* dst)
 {
   using namespace Platform::Cpu;
   int16x8_t bits0_15 = int16x8_t::zero(), bits16_31 = int16x8_t::zero(), bits32_47 = int16x8_t::zero(), bits48_63 = int16x8_t::zero();
@@ -764,7 +768,7 @@ static uint64_t wordMask(uint64_t word)
 }
 
 template<>
-FORCE_INLINE static uint64_t getAcMask<1>(const int16_t* block, int16_t* dst)
+FORCE_INLINE inline uint64_t getAcMask<1>(const int16_t* block, int16_t* dst)
 {
   for (int i = 1; i < 64; i++)
     dst[i] = block[i] + (block[i] >> 15);
@@ -1033,7 +1037,7 @@ static int64_t ffByteCount64(const int8_t* bytes, int64_t count)
       uint64_t flags = words[w] & (words[w] >> 4);
       flags &= flags >> 2;
       flags &= flags >> 1;
-      bytesToAdd += Platform::Cpu::popcnt(flags & 0x0101010101010101ull);
+      bytesToAdd += Platform::Cpu::popcnt((uint64_t)(flags & 0x0101010101010101ull));
     }
   }
   else
@@ -1204,6 +1208,32 @@ int64_t HuffmanEncoder::padToByteBoundary(uint64_t* output, int64_t outputOffset
   RegisterBitsBuffer<true> bitsBuffer(output, outputOffset);
   bitsBuffer.putBits(0xff >> (8 - bitsToAdd), bitsToAdd);
   return bitsBuffer.flush();
+}
+
+uint64_t* HuffmanEncoder::allocBitBuffer(int64_t wordCount)
+{
+  switch (m_byteSimdLength)
+  {
+  case 32:
+    return Platform::Cpu::SIMD<int8_t, 32>::allocMemory<uint64_t>(wordCount);
+  case 16:
+    return Platform::Cpu::SIMD<int8_t, 16>::allocMemory<uint64_t>(wordCount);
+  }
+
+  return (uint64_t*)malloc(sizeof(uint64_t) * wordCount);
+}
+
+void HuffmanEncoder::freeBitBuffer(uint64_t* buffer)
+{
+  switch (m_byteSimdLength)
+  {
+  case 32:
+    return Platform::Cpu::SIMD<int8_t, 32>::freeMemory(buffer);
+  case 16:
+    return Platform::Cpu::SIMD<int8_t, 16>::freeMemory(buffer);
+  }
+
+  free(buffer);
 }
 
 }

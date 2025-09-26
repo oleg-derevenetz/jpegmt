@@ -27,7 +27,7 @@ int64_t FileFormat::writeMarker(OutputStream* stream, Marker marker, const ByteS
   uint8_t bytes[4] = {0xFF, marker, (uint8_t)((length >> 8) & 0xff), (uint8_t)(length & 0xff)};
   if (stream->writeJpegBytes((char*)bytes, sizeof(bytes)) != sizeof(bytes))
     return 0;
-  if (stream->writeJpegBytes((char*)data.data(), data.size()) != data.size())
+  if (stream->writeJpegBytes((char*)data.data(), data.size()) != (int64_t)data.size())
     return 0;
 
   return sizeof(bytes) + data.size();
@@ -129,7 +129,7 @@ FileFormat::ByteSequence FrameHeader::toByteSequence() const
     (uint8_t)m_components.size()
     };
 
-  for(int i = 0; i < m_components.size(); i++)
+  for(size_t i = 0; i < m_components.size(); i++)
   {
     const ComponentInfo& c = m_components.at(i);
     data.insert(data.end(), {c.m_id, (uint8_t)(c.m_hSamplingFactor * 16 + c.m_vSamplingFactor), c.m_quantizationTableIndex});
@@ -151,7 +151,7 @@ FileFormat::ByteSequence ScanHeader::toByteSequence() const
 {
   FileFormat::ByteSequence data{(uint8_t)m_components.size()};
 
-  for (int i = 0; i < m_components.size(); i++)
+  for (size_t i = 0; i < m_components.size(); i++)
   {
     const ComponentInfo& c = m_components.at(i);
     data.insert(data.end(), {c.m_id, (uint8_t)(c.m_dcHuffmanTableIndex * 16 + c.m_acHuffmanTableIndex)});

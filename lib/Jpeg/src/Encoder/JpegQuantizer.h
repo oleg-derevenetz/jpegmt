@@ -15,7 +15,7 @@ namespace Jpeg
 class EncoderBuffer;
 struct QuantizationTable;
 
-class Quantizer
+class alignas(32) Quantizer
 {
 public:
   Quantizer(const QuantizationTable& quantizationTable);
@@ -70,7 +70,7 @@ public:
     typename SimdHelper::ExtendedType value32 = SimdHelper::extend(value);
     value32.lo = quantize<SimdSize / 2>(SimdInt32<SimdSize / 2>{value32.lo}, k);
     value32.hi = quantize<SimdSize / 2>(SimdInt32<SimdSize / 2>{value32.hi}, k);
-    return value32.descale<0>();
+    return value32.template descale<0>();
   }
 
   template<int SimdSize>
