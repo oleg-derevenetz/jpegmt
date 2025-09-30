@@ -17,9 +17,12 @@ int ThreadPool::computeThreadCount(int64_t workItemCount) const
   return nThreads;
 }
 
-void ThreadPool::executeParallel(const WorkerFunction& f, int64_t workItemCount)
+bool ThreadPool::executeParallel(const WorkerFunction& f, int64_t workItemCount)
 {
   int nThreads = computeThreadCount(workItemCount);
+  if (nThreads <= 0)
+    return false;
+
   int64_t itemsPerThread = workItemCount / nThreads;
   int64_t itemsLeft = workItemCount % nThreads;
   std::vector< std::pair<int64_t, int64_t> > ranges(nThreads);
@@ -34,6 +37,7 @@ void ThreadPool::executeParallel(const WorkerFunction& f, int64_t workItemCount)
   }
 
   executeWorkers(f, ranges);
+  return true;
 }
 
 }

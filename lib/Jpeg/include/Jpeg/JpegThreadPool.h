@@ -15,7 +15,7 @@ public:
   virtual ~ThreadPool() = default;
 
   int computeThreadCount(int64_t workItemCount) const;
-  void executeParallel(const WorkerFunction& f, int64_t workItemCount);
+  bool executeParallel(const WorkerFunction& f, int64_t workItemCount);
   virtual int getMaxThreadCount() const = 0;
 
 protected:
