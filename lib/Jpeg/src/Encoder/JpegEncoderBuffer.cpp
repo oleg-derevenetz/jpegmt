@@ -11,8 +11,6 @@
 #include <Jpeg/JpegWriter.h>
 #include "RgbToYcc.h"
 
-#define AVERAGE_IN_RGB_SPACE
-
 namespace Jpeg
 {
 
@@ -24,22 +22,15 @@ static Rgb8ToYccTable makeRgb8ToYccTable()
 
   for (int i = 0; i < 256; i++)
   {
-    table.m_yTable.m_rWeights[i] = Rgb8ToYcc::fixedPointFromFloat(0.29900) * i;
-    table.m_yTable.m_gWeights[i] = Rgb8ToYcc::fixedPointFromFloat(0.58700) * i;
-    table.m_yTable.m_bWeights[i] = Rgb8ToYcc::fixedPointFromFloat(0.11400) * i + Rgb8ToYcc::fixedPointOneHalf;
-    table.m_cbTable.m_rWeights[i] = (-Rgb8ToYcc::fixedPointFromFloat(0.16874)) * i;
-    table.m_cbTable.m_gWeights[i] = (-Rgb8ToYcc::fixedPointFromFloat(0.33126)) * i;
-    /* We use a rounding fudge-factor of 0.5-epsilon for Cb and Cr.
-     * This ensures that the maximum output will round to MAXJSAMPLE
-     * not MAXJSAMPLE+1, and thus that we don't have to range-limit.
-     */
+    table.m_yTable.m_rWeights[i] = Rgb8ToYcc::yrWeight * i;
+    table.m_yTable.m_gWeights[i] = Rgb8ToYcc::ygWeight * i;
+    table.m_yTable.m_bWeights[i] = Rgb8ToYcc::ybWeight * i + Rgb8ToYcc::fixedPointOneHalf;
+    table.m_cbTable.m_rWeights[i] = Rgb8ToYcc::cbrWeight * i;
+    table.m_cbTable.m_gWeights[i] = Rgb8ToYcc::cbgWeight * i;
     table.m_cbTable.m_bWeights[i] = Rgb8ToYcc::fixedPointFromFloat(0.50000) * i + Rgb8ToYcc::cbcr8Offset + Rgb8ToYcc::fixedPointOneHalf - 1;
-    /*  B=>Cb and R=>Cr tables are the same
-        rgb_ycc_tab[i + R_CR_OFF] = FIX(0.50000) * i  + CBCR_OFFSET + ONE_HALF - 1;
-    */
     table.m_crTable.m_rWeights[i] = table.m_cbTable.m_bWeights[i];
-    table.m_crTable.m_gWeights[i] = (-Rgb8ToYcc::fixedPointFromFloat(0.41869)) * i;
-    table.m_crTable.m_bWeights[i] = (-Rgb8ToYcc::fixedPointFromFloat(0.08131)) * i;
+    table.m_crTable.m_gWeights[i] = Rgb8ToYcc::crgWeight * i;
+    table.m_crTable.m_bWeights[i] = Rgb8ToYcc::crbWeight * i;
   }
 
   return table;
@@ -402,7 +393,7 @@ static void grayBlockScanlineToYComponent(const uint8_t* pixels, int scanlineLen
     }
   }
 }
-#else
+#else // TRANSPOSED_SIMD_BUFFER
 template<int SimdLength, typename T>
 static void grayScanlineSimdToYComponent(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, T (*dst)[SimdLength])
 {
@@ -435,7 +426,6 @@ static void grayScanlineSimdToYComponent(const uint8_t* pixels, int scanlineLeng
   }
 }
 
-#if 1
 template<typename T>
 static void grayScanlineSimdToYComponentSquare(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, T (*dst)[Dct::BlockSize])
 {
@@ -473,12 +463,15 @@ void grayScanlineSimdToYComponent<Dct::BlockSize, int16_t>(const uint8_t* pixels
   grayScanlineSimdToYComponentSquare(pixels, scanlineLength, mcu, count, dst);
 }
 
+#if defined(PLATFORM_CPU_FEATURE_INT32x8)
 template<>
 void grayScanlineSimdToYComponent<Dct::BlockSize, int32_t>(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, int32_t (*dst)[Dct::BlockSize])
 {
   grayScanlineSimdToYComponentSquare(pixels, scanlineLength, mcu, count, dst);
 }
+#endif
 
+#if defined(PLATFORM_CPU_FEATURE_INT16x16) && defined(PLATFORM_CPU_FEATURE_INT8x32)
 template<>
 FORCE_INLINE void grayScanlineSimdToYComponent<Dct::BlockSize*2, int16_t>(const uint8_t* pixels, int scanlineLength, const EncoderBuffer::McuIndex* mcu, int count, int16_t (*dst)[Dct::BlockSize*2])
 {
@@ -535,8 +528,8 @@ FORCE_INLINE void grayScanlineSimdToYComponent<Dct::BlockSize*2, int16_t>(const 
     }
   }
 }
-#endif
-#endif
+#endif // defined(PLATFORM_CPU_FEATURE_INT16x16) && defined(PLATFORM_CPU_FEATURE_INT8x32)
+#endif // TRANSPOSED_SIMD_BUFFER
 
 
 static int getScanlineSimdMcuCount(const EncoderBuffer::McuIndex* mcu, int count, const EncoderBuffer::MetaData& bufferMetaData, int imageWidth, int imageHeight)
@@ -1262,8 +1255,10 @@ static void grayToYComponent(const ImageMetaData& imageMetaData, const uint8_t* 
 {
   switch (bufferMetaData.m_simdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT16x16
   case 16:
     return grayToYComponent<16>(imageMetaData, pixels, bufferMetaData, mcu, count, (int16_t (*)[16])dst);
+#endif
   case 8:
     return grayToYComponent<8>(imageMetaData, pixels, bufferMetaData, mcu, count, (int16_t(*)[8])dst);
   case 1:
@@ -1275,8 +1270,10 @@ static void grayToYComponent(const ImageMetaData& imageMetaData, const uint8_t* 
 {
   switch (bufferMetaData.m_simdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT32x8
   case 8:
     return grayToYComponent<8>(imageMetaData, pixels, bufferMetaData, mcu, count, (int32_t(*)[8])dst);
+#endif
   case 4:
     return grayToYComponent<4>(imageMetaData, pixels, bufferMetaData, mcu, count, (int32_t(*)[4])dst);
   case 1:
@@ -1289,8 +1286,10 @@ static void rgbaToYcbr411(const ImageMetaData& imageMetaData, const uint8_t* rgb
 {
   switch(simdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT16x16
   case 16:
     return rgbaToYcbr411<rgbFormat, 16, int16_t>(imageMetaData, rgb, bufferMetaData, mcu, count, (int16_t (*)[Dct::BlockSize2][16])dst, options);
+#endif
   case 8:
     return rgbaToYcbr411<rgbFormat, 8, int16_t>(imageMetaData, rgb, bufferMetaData, mcu, count, (int16_t (*)[Dct::BlockSize2][8])dst, options);
   case 1:
@@ -1305,8 +1304,10 @@ static void rgbaToYcbr411(const ImageMetaData& imageMetaData, const uint8_t* rgb
 {
   switch(simdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT32x8
   case 8:
     return rgbaToYcbr411<rgbFormat, 8, int32_t>(imageMetaData, rgb, bufferMetaData, mcu, count, (int32_t (*)[Dct::BlockSize2][8])dst, options);
+#endif
 //  case 4:
 //    return rgbaToYcbr411<rgbFormat, 4, int32_t>(imageMetaData, rgb, bufferMetaData, mcu, count, (int32_t (*)[Dct::BlockSize2][4])dst, options);
   case 1:
@@ -1578,6 +1579,7 @@ void exportBlock<Dct::BlockSize, int16_t>(int16_t (*dst)[Dct::BlockSize2], const
   }
 }
 
+#ifdef PLATFORM_CPU_FEATURE_INT16x16
 template<>
 void exportBlock<Dct::BlockSize*2, int16_t>(int16_t (*dst)[Dct::BlockSize2], const int16_t (*values)[Dct::BlockSize*2], int mcuBlocks, int count)
 {
@@ -1615,7 +1617,9 @@ void exportBlock<Dct::BlockSize*2, int16_t>(int16_t (*dst)[Dct::BlockSize2], con
     }
   }
 }
+#endif
 
+#ifdef PLATFORM_CPU_FEATURE_INT32x8
 template<>
 void exportBlock<Dct::BlockSize, int32_t>(int16_t (*dst)[Dct::BlockSize2], const int32_t(*values)[Dct::BlockSize], int mcuBlocks, int count)
 {
@@ -1649,6 +1653,7 @@ void exportBlock<Dct::BlockSize, int32_t>(int16_t (*dst)[Dct::BlockSize2], const
     }
   }
 }
+#endif
 
 template<int SimdLength, typename T>
 void exportBlocks(const EncoderBuffer::MetaData& metaData, int16_t (*dst)[Dct::BlockSize2], const T (*buffers)[Dct::BlockSize2 * SimdLength], int count)
@@ -1685,8 +1690,10 @@ static void exportBlocks(const EncoderBuffer::MetaData& metaData, int16_t (*dst)
 {
   switch (metaData.m_simdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT16x16
   case 16:
     return exportBlocks<16>(metaData, dst, (int16_t (*)[Dct::BlockSize2 * 16])buffers, count);
+#endif
   case 8:
     return exportBlocks<8>(metaData, dst, (int16_t (*)[Dct::BlockSize2 * 8])buffers, count);
   case 1:
@@ -1698,8 +1705,10 @@ static void exportBlocks(const EncoderBuffer::MetaData& metaData, int16_t (*dst)
 {
   switch (metaData.m_simdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT32x8
   case 8:
     return exportBlocks<8>(metaData, dst, (int32_t (*)[Dct::BlockSize2 * 8])buffers, count);
+#endif
   case 4:
     return exportBlocks<4>(metaData, dst, (int32_t (*)[Dct::BlockSize2 * 4])buffers, count);
   case 1:

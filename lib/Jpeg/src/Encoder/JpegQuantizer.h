@@ -81,6 +81,7 @@ public:
     return SimdHelper::mulSign((SimdHelper::abs(value) + SimdHelper::populate(4)) >> 3, value);
   }
 
+#ifdef PLATFORM_CPU_FEATURE_INT16x16
   typedef typename Platform::Cpu::SIMD<int16_t, 16>::Type Int16x16;
 
   void quantizeBlock(Int16x16& w0, Int16x16& w1, Int16x16& w2, Int16x16& w3) const
@@ -93,6 +94,7 @@ public:
     w2 = SimdHelper::mulSign(SimdHelper::mulFixedPoint(SimdHelper::mulFixedPoint(SimdHelper::abs(w2) + SimdHelper::load(m_correction16 + 32), SimdHelper::load(m_reciprocal16 + 32)), SimdHelper::load(m_scale16 + 32)), w2);
     w3 = SimdHelper::mulSign(SimdHelper::mulFixedPoint(SimdHelper::mulFixedPoint(SimdHelper::abs(w3) + SimdHelper::load(m_correction16 + 48), SimdHelper::load(m_reciprocal16 + 48)), SimdHelper::load(m_scale16 + 48)), w3);
   }
+#endif
 
 private:
   struct Divisor

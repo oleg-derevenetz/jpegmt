@@ -521,8 +521,10 @@ void performDct(int simdBlockCount, const EncoderBuffer::MetaData& bufferMetaDat
 {
   switch (bufferMetaData.m_simdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT16x16
   case 16:
     return performDct<int16_t, 16>(simdBlockCount, bufferMetaData, quantizers, componentQuantizerIndices, bufferData);
+#endif
   case 8:
     return performDct<int16_t, 8>(simdBlockCount, bufferMetaData, quantizers, componentQuantizerIndices, bufferData);
   case 1:
@@ -536,8 +538,10 @@ void performDct(int simdBlockCount, const EncoderBuffer::MetaData& bufferMetaDat
 {
   switch (bufferMetaData.m_simdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT32x8
   case 8:
     return performDct<int32_t, 8>(simdBlockCount, bufferMetaData, quantizers, componentQuantizerIndices, bufferData);
+#endif
   case 4:
     return performDct<int32_t, 4>(simdBlockCount, bufferMetaData, quantizers, componentQuantizerIndices, bufferData);
   case 1:

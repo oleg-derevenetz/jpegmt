@@ -634,10 +634,12 @@ static uint64_t reduce(Platform::Cpu::int16x8_t mask)
   return (mask64 | (mask64 >> 16)) & 0xffff;
 }
 
+#ifdef PLATFORM_CPU_FEATURE_INT16x16
 static uint64_t reduce(Platform::Cpu::int16x16_t mask)
 {
   return reduce(mask.lowPart() | mask.highPart());
 }
+#endif
 
 #if 0
 static Platform::Cpu::int64x4_t reduce4x4(Platform::Cpu::int16x16_t mask)
@@ -677,6 +679,7 @@ void updateMaskBits(const AcBitMask<T>& bitMask, T acMask, T& bits0_15, T& bits1
 
 template <int SimdLength> static uint64_t getAcMask(const int16_t* block, int16_t* dst);
 
+#ifdef PLATFORM_CPU_FEATURE_INT16x16
 typedef AcBitMask<Platform::Cpu::int16x16_t> AcBitMaskx16;
 
 static AcBitMaskx16 acBitMaskx16_0 = makeAcBitMask<Platform::Cpu::int16x16_t, 0, 1, 5, 6, 14, 15, 27, 28, 2, 4, 7, 13, 16, 26, 29, 42>();
@@ -712,6 +715,7 @@ FORCE_INLINE uint64_t getAcMask<16>(const int16_t* block, int16_t* dst)
   return reduce(bits0_15) | (reduce(bits16_31) << 16) | (reduce(bits32_47) << 32) | (reduce(bits48_63) << 48);
 #endif
 }
+#endif
 
 typedef AcBitMask<Platform::Cpu::int16x8_t> AcBitMaskx8;
 
@@ -1012,8 +1016,10 @@ int64_t HuffmanEncoder::encode(const int16_t* block, const int* mcuComponents, i
 {
   switch (m_simdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT16x16
   case 16:
     return encodeBlocks<16>(block, mcuComponents, mcuBlockCount, componentEncoders, componentEncoderIndices, componentDc, mcuCount, output, outputOffset, outputSizeInItems);
+#endif
   case 8:
     return encodeBlocks<8>(block, mcuComponents, mcuBlockCount, componentEncoders, componentEncoderIndices, componentDc, mcuCount, output, outputOffset, outputSizeInItems);
   case 1:
@@ -1088,8 +1094,10 @@ int64_t HuffmanEncoder::byteStuffingByteCount(const uint64_t* output, int64_t ou
 {
   switch (m_byteSimdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT8x32
   case 32:
     return ffByteCount<32>((const int8_t*)output, outputOffset);
+#endif
   case 16:
     return ffByteCount<16>((const int8_t*)output, outputOffset);
   default:
@@ -1185,9 +1193,11 @@ int64_t HuffmanEncoder::byteStuffing(uint64_t* output, int64_t outputOffset, int
   outputOffset += bytesToAdd * 8;
   switch (m_byteSimdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT8x32
   case 32:
     simdByteStuffing<32, revertByteOrder>(outputBytes, bytesUsed, bytesToAdd);
     break;
+#endif
   case 16:
     simdByteStuffing<16, revertByteOrder>(outputBytes, bytesUsed, bytesToAdd);
     break;
@@ -1215,8 +1225,10 @@ uint64_t* HuffmanEncoder::allocBitBuffer(int64_t wordCount)
 {
   switch (m_byteSimdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT8x32
   case 32:
     return Platform::Cpu::SIMD<int8_t, 32>::allocMemory<uint64_t>(wordCount);
+#endif
   case 16:
     return Platform::Cpu::SIMD<int8_t, 16>::allocMemory<uint64_t>(wordCount);
   }
@@ -1228,8 +1240,10 @@ void HuffmanEncoder::freeBitBuffer(uint64_t* buffer)
 {
   switch (m_byteSimdLength)
   {
+#ifdef PLATFORM_CPU_FEATURE_INT8x32
   case 32:
     return Platform::Cpu::SIMD<int8_t, 32>::freeMemory(buffer);
+#endif
   case 16:
     return Platform::Cpu::SIMD<int8_t, 16>::freeMemory(buffer);
   }
