@@ -5,9 +5,8 @@
 
 #include <Jpeg/JpegImageMetaData.h>
 
-#include "JpegForwardDct.h"
+#include "ForwardDct/JpegForwardDct.h"
 #include "JpegQuantizer.h"
-#include "JpegHuffmanEncoder.h"
 
 namespace Jpeg
 {

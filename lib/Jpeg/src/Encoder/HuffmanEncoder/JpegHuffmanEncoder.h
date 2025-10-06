@@ -89,6 +89,13 @@ protected:
     const HuffmanEncoder* componentEncoders, const int* componentEncoderIndices, int* componentDc, int mcuCount,
     uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems);
 
+  template <int SimdLength>
+  static int64_t encodeBlocksImplementation(const int16_t* block, const int* mcuComponents, int mcuBlockCount,
+    const HuffmanEncoder* componentEncoders, const int* componentEncoderIndices, int* componentDc, int mcuCount,
+    uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems);
+
+  friend struct EncodeBlocksCallable;
+
 private:
   LookupTable m_dcTable;
   LookupTable m_acTable;

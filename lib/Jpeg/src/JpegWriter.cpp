@@ -8,8 +8,6 @@
 #include <Jpeg/JpegThreadPool.h>
 
 #include "Encoder/JpegEncoder.h"
-#include "Encoder/JpegEncoderBuffer.h"
-#include "Encoder/JpegHuffmanEncoder.h"
 #include "JpegFileFormat.h"
 
 static bool isGrayscaleImage(const Jpeg::ImageMetaData& imageMetaData)

@@ -7,8 +7,6 @@
 
 #include <Jpeg/JpegDCT.h>
 
-#include "JpegEncoderBuffer.h"
-
 namespace Jpeg
 {
 
@@ -81,7 +79,7 @@ public:
     return SimdHelper::mulSign((SimdHelper::abs(value) + SimdHelper::populate(4)) >> 3, value);
   }
 
-#ifdef PLATFORM_CPU_FEATURE_INT16x16
+#if !defined(TRANSPOSED_SIMD_BUFFER) && defined(PLATFORM_CPU_FEATURE_INT16x16)
   typedef typename Platform::Cpu::SIMD<int16_t, 16>::Type Int16x16;
 
   void quantizeBlock(Int16x16& w0, Int16x16& w1, Int16x16& w2, Int16x16& w3) const

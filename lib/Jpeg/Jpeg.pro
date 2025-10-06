@@ -34,9 +34,21 @@ INCLUDEPATH += $${HELPER_INCLUDE_DIR} include
 
 SOURCES += \
     src/Encoder/JpegEncoder.cpp \
-    src/Encoder/JpegEncoderBuffer.cpp \
-    src/Encoder/JpegForwardDct.cpp \
-    src/Encoder/JpegHuffmanEncoder.cpp \
+    src/Encoder/EncoderBuffer/JpegEncoderBuffer.cpp \
+    src/Encoder/EncoderBuffer/JpegEncoderBufferInt16x8.cpp \
+    src/Encoder/EncoderBuffer/JpegEncoderBufferInt16x16.cpp \
+    src/Encoder/EncoderBuffer/JpegEncoderBufferInt32x4.cpp \
+    src/Encoder/EncoderBuffer/JpegEncoderBufferInt32x8.cpp \
+    src/Encoder/ForwardDct/JpegForwardDct.cpp \
+    src/Encoder/ForwardDct/JpegForwardDctInt16x8.cpp \
+    src/Encoder/ForwardDct/JpegForwardDctInt16x16.cpp \
+    src/Encoder/ForwardDct/JpegForwardDctInt32x4.cpp \
+    src/Encoder/ForwardDct/JpegForwardDctInt32x8.cpp \
+    src/Encoder/HuffmanEncoder/JpegByteStuffingInt8x16.cpp \
+    src/Encoder/HuffmanEncoder/JpegByteStuffingInt8x32.cpp \
+    src/Encoder/HuffmanEncoder/JpegHuffmanEncoder.cpp \
+    src/Encoder/HuffmanEncoder/JpegHuffmanEncoderInt16x8.cpp \
+    src/Encoder/HuffmanEncoder/JpegHuffmanEncoderInt16x16.cpp \
     src/Encoder/JpegQuantizer.cpp \
     src/JpegDCT.cpp \
     src/JpegFileFormat.cpp \
@@ -45,12 +57,18 @@ SOURCES += \
 
 # internal headers
 HEADERS += \
+    src/Encoder/Common.h \
     src/Encoder/JpegEncoder.h \
-    src/Encoder/JpegEncoderBuffer.h \
-    src/Encoder/JpegForwardDct.h \
-    src/Encoder/JpegHuffmanEncoder.h \
+    src/Encoder/EncoderBuffer/JpegEncoderBuffer.h \
+    src/Encoder/EncoderBuffer/JpegEncoderBufferTemplates.h \
+    src/Encoder/EncoderBuffer/RgbToYcc.h \
+    src/Encoder/ForwardDct/JpegForwardDct.h \
+    src/Encoder/ForwardDct/JpegForwardDctTemplates.h \
+    src/Encoder/HuffmanEncoder/JpegByteStuffingTemplates.h \
+    src/Encoder/HuffmanEncoder/JpegHuffmanEncoder.h \
+    src/Encoder/HuffmanEncoder/JpegHuffmanEncoderTemplates.h \
+    src/Encoder/HuffmanEncoder/JpegHuffmanEncoderUtils.h \
     src/Encoder/JpegQuantizer.h \
-    src/Encoder/RgbToYcc.h \
     src/JpegFileFormat.h
 
 # interface headers

@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
-#include "JpegEncoderBuffer.h"
-#include "JpegHuffmanEncoder.h"
+#include "EncoderBuffer/JpegEncoderBuffer.h"
+#include "HuffmanEncoder/JpegHuffmanEncoder.h"
 #include "JpegQuantizer.h"
 
 namespace Jpeg
