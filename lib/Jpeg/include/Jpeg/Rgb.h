@@ -62,7 +62,7 @@ struct Rgb8ToYcc : public FixedPoint32
   template<int cbcrAddFractionBits>
   constexpr static FixedPoint cbcrOffset()
   {
-    return ((FixedPoint)1 << (fixedPointFractionBits + cbcrAddFractionBits - 1)) - 1;
+    return ((FixedPoint)1 << (fixedPointFractionBits + cbcrAddFractionBits - 1)) - (1 << cbcrAddFractionBits);
   }
 
   constexpr static FixedPoint cbcr8Offset = (FixedPoint)128 << fixedPointFractionBits;

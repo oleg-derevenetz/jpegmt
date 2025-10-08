@@ -118,7 +118,7 @@ template<>
 inline int16_t Quantizer::quantize32<1>(int16_t value, int k) const
 {
   const Divisor& divisor = m_divisors[k];
-  int16_t quantized = (int16_t)((uint64_t)((value < 0 ? -value : value) + divisor.m_correction) * divisor.m_reciprocal) >> (divisor.m_shift + 32);
+  int16_t quantized = (int16_t)(((uint64_t)((value < 0 ? -value : value) + divisor.m_correction) * divisor.m_reciprocal) >> (divisor.m_shift + 32));
   return value < 0 ? -quantized : quantized;
 }
 
