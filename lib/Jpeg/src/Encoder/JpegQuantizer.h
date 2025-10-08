@@ -32,8 +32,6 @@ public:
   inline SimdInt32<SimdSize> quantize(SimdInt32<SimdSize> value, int k) const
   {
     using namespace Platform::Cpu;
-    using namespace Platform::Cpu::int32;
-    using namespace Platform::Cpu::uint32;
     typedef SIMD<int32_t, SimdSize> SimdHelper;
     typedef SIMD<uint32_t, SimdSize> USimdHelper;
 

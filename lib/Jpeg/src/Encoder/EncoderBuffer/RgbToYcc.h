@@ -72,19 +72,16 @@ struct RgbToYcc<int32_t, SimdLength, cbcrAddFractionBits> : public Rgb8ToYcc
 
   static SimdType y(SimdType r, SimdType g, SimdType b)
   {
-    using namespace Platform::Cpu::int32;
     return (r * yrWeight + g * ygWeight + b * ybWeight + SimdHelper::populate(yOffset)) >> fixedPointFractionBits;
   }
 
   static SimdType cb(SimdType r, SimdType g, SimdType b, int32_t bias = 0)
   {
-    using namespace Platform::Cpu::int32;
     return ((b << (fixedPointFractionBits - 1)) + r * cbrWeight + g * cbgWeight + SimdHelper::populate(cbcrOffset<cbcrAddFractionBits>() + bias)) >> (fixedPointFractionBits + cbcrAddFractionBits);
   }
 
   static SimdType cr(SimdType r, SimdType g, SimdType b, int32_t bias = 0)
   {
-    using namespace Platform::Cpu::int32;
     return ((r << (fixedPointFractionBits - 1)) + g * crgWeight + b * crbWeight + SimdHelper::populate(cbcrOffset<cbcrAddFractionBits>() + bias)) >> (fixedPointFractionBits + cbcrAddFractionBits);
   }
 };

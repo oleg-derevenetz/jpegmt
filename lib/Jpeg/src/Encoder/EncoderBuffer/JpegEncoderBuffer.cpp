@@ -44,13 +44,15 @@ EncoderBuffer::MetaData::MetaData(const std::vector<ComponentInfo>& components)
 
   m_mcuBlockCount = blockOffset;
 
+  using namespace Platform::Cpu;
+  SimdFeatures commonSimdFeatures = SimdFeature::Abs | SimdFeature::MulSign | SimdFeature::InitFromUint8;
   switch (m_itemType)
   {
   case Int16:
-    setSimdLength(Platform::Cpu::SimdDetector<int16_t>::maxSimdLength());
+    setSimdLength(Platform::Cpu::SimdDetector<int16_t>::maxSimdLength(commonSimdFeatures));
     break;
   case Int32:
-    setSimdLength(Platform::Cpu::SimdDetector<int32_t>::maxSimdLength());
+    setSimdLength(Platform::Cpu::SimdDetector<int32_t>::maxSimdLength(commonSimdFeatures | Multiplication));
     break;
   }
 }

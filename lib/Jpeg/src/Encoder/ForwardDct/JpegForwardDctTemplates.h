@@ -47,7 +47,6 @@ static void processDimension(const int32_t (*values)[SimdSize], int32_t (*result
   static_assert(passNumber == 1 || passNumber == 2, "invalid pass number");
   typedef Platform::Cpu::SIMD<int32_t, SimdSize> SimdHelper;
   typedef typename SimdHelper::Type SimdType;
-  using namespace Platform::Cpu::int32;
 
   assert(Dct::BlockSize == 8);
   for (int x = 0; x < 8; x++, values += 8)

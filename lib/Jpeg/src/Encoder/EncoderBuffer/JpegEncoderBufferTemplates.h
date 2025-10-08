@@ -349,7 +349,6 @@ namespace
       typedef typename RgbSimdHelper::Type RgbSimdType;
       typedef Platform::Cpu::SIMD<T, SimdLength> SimdHelper;
       typedef typename SimdHelper::Type SimdType;
-      using namespace Platform::Cpu::int32;
 
       int ySubBlock = (2 * j / Dct::BlockSize) * 2;
       int yy0 = 2 * j % Dct::BlockSize;

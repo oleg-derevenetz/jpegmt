@@ -1,5 +1,7 @@
 #include "JpegHuffmanEncoder.h"
 
+#include <algorithm>
+
 #include "JpegByteStuffingTemplates.h"
 #include "JpegHuffmanEncoderTemplates.h"
 
@@ -7,7 +9,9 @@ namespace Jpeg
 {
 
 int HuffmanEncoder::m_simdLength = Platform::Cpu::SimdDetector<int16_t>::maxSimdLength();
-int HuffmanEncoder::m_byteSimdLength = Platform::Cpu::SimdDetector<int8_t>::maxSimdLength();
+int HuffmanEncoder::m_byteSimdLength = std::min(
+  Platform::Cpu::SimdDetector<int8_t>::maxSimdLength(),
+  Platform::Cpu::SimdDetector<int64_t>::maxSimdLength(Platform::Cpu::SimdFeature::RevertByteOrder) * 8);
 
 HuffmanEncoder::LookupTable::LookupTable()
 {

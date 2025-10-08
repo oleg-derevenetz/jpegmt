@@ -10,12 +10,7 @@ include_directories("${jpegmt_SOURCE_DIR}/include" "${HELPER_LIB_INCLUDE_PATH}")
 set(JPEGMT_SOURCES 
     src/Encoder/JpegEncoder.cpp
     src/Encoder/EncoderBuffer/JpegEncoderBuffer.cpp
-    src/Encoder/EncoderBuffer/JpegEncoderBufferInt16x8.cpp
-    src/Encoder/EncoderBuffer/JpegEncoderBufferInt32x4.cpp
     src/Encoder/ForwardDct/JpegForwardDct.cpp
-    src/Encoder/ForwardDct/JpegForwardDctInt16x8.cpp
-    src/Encoder/ForwardDct/JpegForwardDctInt32x4.cpp
-    src/Encoder/HuffmanEncoder/JpegByteStuffingInt8x16.cpp
     src/Encoder/HuffmanEncoder/JpegHuffmanEncoder.cpp
     src/Encoder/HuffmanEncoder/JpegHuffmanEncoderInt16x8.cpp
     src/Encoder/JpegQuantizer.cpp
@@ -26,6 +21,11 @@ set(JPEGMT_SOURCES
 )
 
 set(JPEGMT_SSE41_SOURCES
+    src/Encoder/EncoderBuffer/JpegEncoderBufferInt16x8.cpp # int16x8::fromPackedUint8()
+    src/Encoder/EncoderBuffer/JpegEncoderBufferInt32x4.cpp # int32x4::fromPackedUint8()
+    src/Encoder/ForwardDct/JpegForwardDctInt16x8.cpp # SIMD<int16_t, 8>::abs(), SIMD<int16_t, 8>::mulSign()
+    src/Encoder/ForwardDct/JpegForwardDctInt32x4.cpp # int32x4::operator*()
+    src/Encoder/HuffmanEncoder/JpegByteStuffingInt8x16.cpp # int64x2_t::revertByteOrder()
 )
 
 set(JPEGMT_AVX2_SOURCES
@@ -64,7 +64,8 @@ list(APPEND JPEGMT_SOURCES
 )
 
 add_library(jpegmt STATIC ${JPEGMT_SOURCES})
-add_library(jpegmt_avx2 STATIC ${JPEGMT_AVX2_SOURCES})
+add_library(jpegmt_sse41 OBJECT ${JPEGMT_SSE41_SOURCES})
+add_library(jpegmt_avx2 OBJECT ${JPEGMT_AVX2_SOURCES})
 
 if (MSVC)
   set(COMPILER_OPTIONS -WX)
@@ -77,5 +78,6 @@ else()
 endif()
 
 target_compile_options(jpegmt PRIVATE ${COMPILER_OPTIONS})
+target_compile_options(jpegmt_sse41 PRIVATE ${SSE41_COMPILER_OPTIONS})
 target_compile_options(jpegmt_avx2 PRIVATE ${AVX2_COMPILER_OPTIONS})
 target_link_libraries(jpegmt PRIVATE jpegmt_avx2)
