@@ -61,13 +61,15 @@ public:
     ItemType m_itemType = Int16;
     int m_simdLengthLog2 = 0;
     int m_simdLength = 1;
+    int m_maxSimdLength = 0x7fffffff;
     bool m_isYcbcr411components = false;
     int m_mcuBlockCount = 0;
     int m_hScale = 1;
     int m_vScale = 1;
 
-    MetaData(const std::vector<ComponentInfo>& components);
+    MetaData(const std::vector<ComponentInfo>& components, ItemType itemType = Int16, int maxSimdLength = 0x7fffffff);
 
+    static int getSimdLength(ItemType itemType, int maxSimdLength);
     bool setSimdLength(int simdLength);
 
     int getMcuBlockCount() const;
@@ -82,6 +84,9 @@ public:
     int blockYPos(const McuIndex& mcu, int subBlock) const;
 
     Component getComponent(int component) const;
+
+    template<typename T>
+    static int detectSimdLength(uint64_t features, int lengthLimit);
   };
 
   typedef MetaData::McuIndex McuIndex;

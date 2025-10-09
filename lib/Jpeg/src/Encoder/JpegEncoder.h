@@ -13,6 +13,7 @@ namespace Jpeg
 
 struct QuantizationTable;
 struct EncodingOptions;
+struct HuffmanEncoderOptions;
 
 class Encoder
 {
@@ -24,9 +25,9 @@ public:
     int64_t m_wordsAllocated = 0;
     std::shared_ptr<uint64_t> m_buffer;
 
-    bool reserve(int64_t bitCount);
+    bool reserve(int64_t bitCount, const HuffmanEncoderOptions& options);
 
-    static BitBuffer merge(const std::vector<BitBuffer>& buffers, double reserveFraction);
+    static BitBuffer merge(const std::vector<BitBuffer>& buffers, double reserveFraction, const HuffmanEncoderOptions& options);
   };
   typedef EncoderBuffer::McuIndex McuIndex;
 
@@ -35,9 +36,9 @@ public:
 
   int quantize(EncoderBuffer& encoderBuffer, const ImageMetaData& imageMetaData, const uint8_t* pixels, const McuIndex* mcuIndices, int16_t (*dst)[Dct::BlockSize2], int count, const EncodingOptions& options) const;
   void optimizeDummyBlocks(const EncoderBuffer::MetaData& encoderBufferMetaData, const Size& imageSize, const Size& imageSizeInMcu, const McuIndex* mcuIndices, int16_t (*blocks)[Dct::BlockSize2], int count) const;
-  bool encode(const EncoderBuffer::MetaData& encoderBufferMetaData, BitBuffer& dst, std::vector<int>& prevComponentDc, const int16_t (*blocks)[Dct::BlockSize2], int count) const;
+  bool encode(const EncoderBuffer::MetaData& encoderBufferMetaData, BitBuffer& dst, std::vector<int>& prevComponentDc, const int16_t (*blocks)[Dct::BlockSize2], int count, const HuffmanEncoderOptions& options) const;
 
-  static bool reserveEstimatedBitCount(BitBuffer& bitBuffer, const EncoderBuffer::MetaData& encoderBufferMetaData, int64_t blockCount, int quality);
+  static bool reserveEstimatedBitCount(BitBuffer& bitBuffer, const EncoderBuffer::MetaData& encoderBufferMetaData, int64_t blockCount, int quality, const HuffmanEncoderOptions& options);
 
 private:
   std::vector<QuantizationTable> m_quantizationTables;

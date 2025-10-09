@@ -117,4 +117,10 @@ void exportBlocksImplementation<int32_t, 8>(const EncoderBuffer::MetaData&, int1
 
 #endif // defined(PLATFORM_CPU_FEATURE_INT32x8)
 
+template<>
+int EncoderBuffer::MetaData::detectSimdLength<int32_t>(uint64_t features, int lengthLimit)
+{
+  return Platform::Cpu::SimdDetector<int32_t>::maxSimdLength(features, lengthLimit);
+}
+
 }

@@ -1,17 +1,16 @@
 #include "JpegHuffmanEncoder.h"
 
-#include <algorithm>
-
 #include "JpegByteStuffingTemplates.h"
 #include "JpegHuffmanEncoderTemplates.h"
 
 namespace Jpeg
 {
 
-int HuffmanEncoder::m_simdLength = Platform::Cpu::SimdDetector<int16_t>::maxSimdLength();
-int HuffmanEncoder::m_byteSimdLength = std::min(
-  Platform::Cpu::SimdDetector<int8_t>::maxSimdLength(),
-  Platform::Cpu::SimdDetector<int64_t>::maxSimdLength(Platform::Cpu::SimdFeature::RevertByteOrder) * 8);
+HuffmanEncoderOptions::HuffmanEncoderOptions(int encoderMaxSimdLength, int byteStuffingMaxSimdLength) :
+  m_encoderSimdLength(detectSimdLength(encoderMaxSimdLength)),
+  m_byteStuffingSimdLength(detectByteStuffingSimdLength(byteStuffingMaxSimdLength))
+{
+}
 
 HuffmanEncoder::LookupTable::LookupTable()
 {
@@ -85,10 +84,10 @@ HuffmanEncoder::HuffmanEncoder(const HuffmanTable& dcTable, const HuffmanTable& 
 {
 }
 
-int64_t HuffmanEncoder::encode(const int16_t* block, int prevDcValue, uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems) const
+int64_t HuffmanEncoder::encode(const int16_t* block, int prevDcValue, uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems, const HuffmanEncoderOptions& options) const
 {
   int mcuComponents = 0, encoderIndex = 0;
-  return encode(block, &mcuComponents, 1, this, &encoderIndex, &prevDcValue, 1, output, outputOffset, outputSizeInItems);
+  return encode(block, &mcuComponents, 1, this, &encoderIndex, &prevDcValue, 1, output, outputOffset, outputSizeInItems, options);
 }
 
 #if 0
@@ -518,9 +517,9 @@ struct EncodeBlocksCallable : public Int64ReturnTypeCallable
 
 int64_t HuffmanEncoder::encode(const int16_t* block, const int* mcuComponents, int mcuBlockCount,
   const HuffmanEncoder* componentEncoders, const int* componentEncoderIndices, int* componentDc, int mcuCount,
-  uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems)
+  uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems, const HuffmanEncoderOptions& options)
 {
-  return SimdFunctionChooser<EncodeBlocksCallable>::perform<int16_t>(m_simdLength, block, mcuComponents, mcuBlockCount, componentEncoders, componentEncoderIndices, componentDc, mcuCount, output, outputOffset, outputSizeInItems);
+  return SimdFunctionChooser<EncodeBlocksCallable>::perform<int16_t>(options.m_encoderSimdLength, block, mcuComponents, mcuBlockCount, componentEncoders, componentEncoderIndices, componentDc, mcuCount, output, outputOffset, outputSizeInItems);
 }
 
 #endif
@@ -597,18 +596,18 @@ struct FreeBitBufferCallable : public NoReturnValueCallable
 
 }
 
-int64_t HuffmanEncoder::byteStuffingByteCount(const uint64_t* output, int64_t outputOffset)
+int64_t HuffmanEncoder::byteStuffingByteCount(const uint64_t* output, int64_t outputOffset, const HuffmanEncoderOptions& options)
 {
-  return SimdFunctionChooser<ByteStuffingByteCountCallable>::perform<int8_t>(m_byteSimdLength, output, outputOffset);
+  return SimdFunctionChooser<ByteStuffingByteCountCallable>::perform<int8_t>(options.m_byteStuffingSimdLength, output, outputOffset);
 }
 
-int64_t HuffmanEncoder::byteStuffing(uint64_t* output, int64_t outputOffset, int64_t bytesToAdd)
+int64_t HuffmanEncoder::byteStuffing(uint64_t* output, int64_t outputOffset, int64_t bytesToAdd, const HuffmanEncoderOptions& options)
 {
   uint8_t* outputBytes = (uint8_t*)output;
   int64_t bytesUsed = outputOffset > 0 ? bitWord<uint8_t>(outputOffset - 1) + 1 : 0;
 
   outputOffset += bytesToAdd * 8;
-  SimdFunctionChooser<ByteStuffingCallable>::perform<int8_t>(m_byteSimdLength, outputBytes, bytesUsed, bytesToAdd);
+  SimdFunctionChooser<ByteStuffingCallable>::perform<int8_t>(options.m_byteStuffingSimdLength, outputBytes, bytesUsed, bytesToAdd);
   return outputOffset;
 }
 
@@ -623,14 +622,14 @@ int64_t HuffmanEncoder::padToByteBoundary(uint64_t* output, int64_t outputOffset
   return bitsBuffer.flush();
 }
 
-uint64_t* HuffmanEncoder::allocBitBuffer(int64_t wordCount)
+uint64_t* HuffmanEncoder::allocBitBuffer(int64_t wordCount, const HuffmanEncoderOptions& options)
 {
-  return SimdFunctionChooser<AllocBitBufferCountCallable>::perform<int8_t>(m_byteSimdLength, wordCount);
+  return SimdFunctionChooser<AllocBitBufferCountCallable>::perform<int8_t>(options.m_byteStuffingSimdLength, wordCount);
 }
 
-void HuffmanEncoder::freeBitBuffer(uint64_t* buffer)
+void HuffmanEncoder::freeBitBuffer(uint64_t* buffer, const HuffmanEncoderOptions& options)
 {
-  SimdFunctionChooser<FreeBitBufferCallable>::perform<int8_t>(m_byteSimdLength, buffer);
+  SimdFunctionChooser<FreeBitBufferCallable>::perform<int8_t>(options.m_byteStuffingSimdLength, buffer);
 }
 
 }

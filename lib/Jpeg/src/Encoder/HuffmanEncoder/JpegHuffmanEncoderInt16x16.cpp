@@ -80,4 +80,10 @@ int64_t HuffmanEncoder::encodeBlocksImplementation<16>(const int16_t*, const int
 }
 
 #endif // defined(PLATFORM_CPU_FEATURE_INT16x16)
+
+int HuffmanEncoderOptions::detectSimdLength(int lengthLimit)
+{
+  return Platform::Cpu::SimdDetector<int16_t>::maxSimdLength(0, lengthLimit);
+}
+
 }

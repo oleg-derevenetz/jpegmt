@@ -1,5 +1,9 @@
 #include "JpegByteStuffingTemplates.h"
 
+#include <algorithm>
+
+#include "JpegHuffmanEncoder.h"
+
 namespace Jpeg
 {
 #ifdef PLATFORM_CPU_FEATURE_INT8x32
@@ -47,6 +51,13 @@ template <> void freeBitBufferImplementation<32>(uint64_t*)
 {
   assert(false);
 }
-
 #endif // PLATFORM_CPU_FEATURE_INT8x32
+
+int HuffmanEncoderOptions::detectByteStuffingSimdLength(int lengthLimit)
+{
+  return std::min(
+    Platform::Cpu::SimdDetector<int8_t>::maxSimdLength(0, lengthLimit),
+    Platform::Cpu::SimdDetector<int64_t>::maxSimdLength(Platform::Cpu::SimdFeature::RevertByteOrder, lengthLimit / 8) * 8);
+}
+
 }

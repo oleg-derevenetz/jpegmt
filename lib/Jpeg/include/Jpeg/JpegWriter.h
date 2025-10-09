@@ -21,7 +21,17 @@ public:
 
 struct EncodingOptions
 {
+  enum EncoderBufferItemType
+  {
+    Int16,
+    Int32
+  };
+
   bool m_averageInRgbSpace = true;
+  EncoderBufferItemType m_encoderBufferItemType = Int16;
+  int m_encoderBufferMaxSimdLength = 0x7fffffff;
+  int m_huffmanEncoderMaxSimdLength = 0x7fffffff;
+  int m_byteStuffingMaxSimdLength = 0x7fffffff;
 };
 
 class Writer
@@ -30,6 +40,11 @@ public:
   Writer(OutputStream* stream, ThreadPool* threadPool = nullptr);
 
   bool setQuality(int quality);
+
+  EncodingOptions::EncoderBufferItemType getEncoderBufferItemType(const EncodingOptions& options) const;
+  int getEncoderBufferSimdLength(const EncodingOptions& options) const;
+  int getHuffmanEncoderSimdLength(const EncodingOptions& options) const;
+  int getByteStuffingSimdLength(const EncodingOptions& options) const;
 
   bool write(const ImageMetaData& imageMetaData, const uint8_t* pixels, const EncodingOptions& options = EncodingOptions());
 

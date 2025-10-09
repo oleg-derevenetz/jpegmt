@@ -121,7 +121,7 @@ FORCE_INLINE void encodeComponent(const EncoderBuffer::MetaData::Component& comp
   }
 }
 
-bool Encoder::encode(const EncoderBuffer::MetaData& encoderBufferMetaData, BitBuffer& compressionBuffer, std::vector<int>& prevComponentDc, const int16_t (*blocks)[Dct::BlockSize2], int count) const
+bool Encoder::encode(const EncoderBuffer::MetaData& encoderBufferMetaData, BitBuffer& compressionBuffer, std::vector<int>& prevComponentDc, const int16_t (*blocks)[Dct::BlockSize2], int count, const HuffmanEncoderOptions& options) const
 {
   int* prevDc = prevComponentDc.data();
 
@@ -135,11 +135,11 @@ bool Encoder::encode(const EncoderBuffer::MetaData& encoderBufferMetaData, BitBu
   for (int i = 0; i < count; i += countPerCheck, blocks += countPerCheck * encoderBufferMetaData.m_mcuBlockCount)
   {
     int mcuCount = std::min(countPerCheck, count - i);
-    if (!compressionBuffer.reserve(mcuCount * encoderBufferMetaData.m_mcuBlockCount * maxPossibleBitsPerBlock))
+    if (!compressionBuffer.reserve(mcuCount * encoderBufferMetaData.m_mcuBlockCount * maxPossibleBitsPerBlock, options))
       return false;
 
     compressionBuffer.m_bitCount = HuffmanEncoder::encode(blocks[0], mcuComponents, encoderBufferMetaData.m_mcuBlockCount, encoders, encoderIndices, prevDc, mcuCount,
-      compressionBuffer.m_bits, compressionBuffer.m_bitCount, compressionBuffer.m_wordsAllocated);
+      compressionBuffer.m_bits, compressionBuffer.m_bitCount, compressionBuffer.m_wordsAllocated, options);
   }
 #else
   const std::vector<EncoderBuffer::MetaData::Component>& components = encoderBufferMetaData.m_components;
@@ -223,15 +223,15 @@ bool Encoder::encode(const EncoderBuffer::MetaData& encoderBufferMetaData, BitBu
   return true;
 }
 
-bool Encoder::reserveEstimatedBitCount(BitBuffer& bitBuffer, const EncoderBuffer::MetaData& encoderBufferMetaData, int64_t blockCount, int quality)
+bool Encoder::reserveEstimatedBitCount(BitBuffer& bitBuffer, const EncoderBuffer::MetaData& encoderBufferMetaData, int64_t blockCount, int quality, const HuffmanEncoderOptions& options)
 {
   double estimatedBitsPerBlock = 32;
   if (quality >= 50)
     estimatedBitsPerBlock *= pow(2.0, (quality - 50) / 10.0);
-  return bitBuffer.reserve(blockCount * encoderBufferMetaData.m_mcuBlockCount * (int)estimatedBitsPerBlock);
+  return bitBuffer.reserve(blockCount * encoderBufferMetaData.m_mcuBlockCount * (int)estimatedBitsPerBlock, options);
 }
 
-Encoder::BitBuffer Encoder::BitBuffer::merge(const std::vector<BitBuffer>& buffers, double reserveFraction)
+Encoder::BitBuffer Encoder::BitBuffer::merge(const std::vector<BitBuffer>& buffers, double reserveFraction, const HuffmanEncoderOptions& options)
 {
   if (buffers.size() == 0)
     return BitBuffer();
@@ -245,7 +245,7 @@ Encoder::BitBuffer Encoder::BitBuffer::merge(const std::vector<BitBuffer>& buffe
   totalBits += (int64_t)(totalBits * reserveFraction);
 
   BitBuffer merged = buffers.at(0);
-  if (!merged.reserve(totalBits)) // NOTE: results.at(0) may be used if already has enough bits
+  if (!merged.reserve(totalBits, options)) // NOTE: results.at(0) may be used if already has enough bits
     return BitBuffer();
 
   constexpr int wordBits = sizeof(merged.m_bits[0]) * 8;
@@ -287,7 +287,7 @@ Encoder::BitBuffer Encoder::BitBuffer::merge(const std::vector<BitBuffer>& buffe
   return merged;
 }
 
-bool Encoder::BitBuffer::reserve(int64_t bitCount)
+bool Encoder::BitBuffer::reserve(int64_t bitCount, const HuffmanEncoderOptions& options)
 {
   assert(m_wordsAllocated >= 0 && m_bitCount >= 0 && bitCount >= 0);
   assert(m_wordsAllocated * sizeof(m_bits[0]) * 8 >= (size_t)m_bitCount);
@@ -296,14 +296,14 @@ bool Encoder::BitBuffer::reserve(int64_t bitCount)
 
   int64_t bitsRequired = std::max<int64_t>(m_bitCount + bitCount, (int64_t)(m_bitCount * 1.5));
   int64_t wordsRequired = 1 + (bitsRequired - 1) / (sizeof(m_bits[0]) * 8);
-  uint64_t* words = HuffmanEncoder::allocBitBuffer(wordsRequired);
+  uint64_t* words = HuffmanEncoder::allocBitBuffer(wordsRequired, options);
   if (!words)
     return false;
 
 //  assert(!m_bits || !m_bitCount);
   if (m_bits && m_bitCount)
     memcpy(words, m_bits, (1 + (m_bitCount - 1) / (sizeof(words[0]) * 8)) * sizeof(words[0]));
-  m_buffer = std::shared_ptr<uint64_t>(words, HuffmanEncoder::freeBitBuffer);
+  m_buffer = std::shared_ptr<uint64_t>(words, [options](uint64_t* buffer) { HuffmanEncoder::freeBitBuffer(buffer, options); });
   m_bits = words;
   m_wordsAllocated = wordsRequired;
   return true;

@@ -10,21 +10,32 @@ namespace Jpeg
 class EncoderBuffer;
 struct HuffmanTable;
 
+struct HuffmanEncoderOptions
+{
+  int m_encoderSimdLength = 1;
+  int m_byteStuffingSimdLength = 1;
+
+  HuffmanEncoderOptions(int encoderMaxSimdLength, int byteStuffingMaxSimdLength);
+
+  static int detectSimdLength(int lengthLimit);
+  static int detectByteStuffingSimdLength(int lengthLimit);
+};
+
 class HuffmanEncoder
 {
 public:
   HuffmanEncoder(const HuffmanTable& dcTable, const HuffmanTable& acTable);
 
-  int64_t encode(const int16_t* block, int prevDc, uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems) const;
+  int64_t encode(const int16_t* block, int prevDc, uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems, const HuffmanEncoderOptions& options) const;
   static int64_t encode(const int16_t* blocks, const int* mcuComponents, int mcuBlockCount, 
     const HuffmanEncoder* componentEncoders, const int* componentEncoderIndices, int* componentDc, int mcuCount,
-    uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems);
+    uint64_t* output, int64_t outputOffset, int64_t outputSizeInItems, const HuffmanEncoderOptions& options);
   static int64_t padToByteBoundary(uint64_t* output, int64_t outputOffset);
-  static int64_t byteStuffingByteCount(const uint64_t* output, int64_t outputOffset);
-  static int64_t byteStuffing(uint64_t* output, int64_t outputOffset, int64_t bytesToAdd);
+  static int64_t byteStuffingByteCount(const uint64_t* output, int64_t outputOffset, const HuffmanEncoderOptions& options);
+  static int64_t byteStuffing(uint64_t* output, int64_t outputOffset, int64_t bytesToAdd, const HuffmanEncoderOptions& options);
 
-  static uint64_t* allocBitBuffer(int64_t wordCount);
-  static void freeBitBuffer(uint64_t* buffer);
+  static uint64_t* allocBitBuffer(int64_t wordCount, const HuffmanEncoderOptions& options);
+  static void freeBitBuffer(uint64_t* buffer, const HuffmanEncoderOptions& options);
 
   struct LookupTable
   {
@@ -99,9 +110,6 @@ protected:
 private:
   LookupTable m_dcTable;
   LookupTable m_acTable;
-
-  static int m_simdLength;
-  static int m_byteSimdLength;
 };
 
 }

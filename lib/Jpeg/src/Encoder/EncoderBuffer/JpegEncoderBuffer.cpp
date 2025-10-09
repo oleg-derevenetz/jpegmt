@@ -13,7 +13,8 @@ namespace Jpeg
 
 // EncoderBuffer::MetaData
 
-EncoderBuffer::MetaData::MetaData(const std::vector<ComponentInfo>& components)
+EncoderBuffer::MetaData::MetaData(const std::vector<ComponentInfo>& components, ItemType itemType, int maxSimdLength) :
+  m_itemType(itemType), m_maxSimdLength(maxSimdLength)
 {
   int blockOffset = 0;
   for (int i = 0; i < (int)components.size(); i++)
@@ -44,17 +45,25 @@ EncoderBuffer::MetaData::MetaData(const std::vector<ComponentInfo>& components)
 
   m_mcuBlockCount = blockOffset;
 
+  setSimdLength(getSimdLength(m_itemType, maxSimdLength));
+}
+
+int EncoderBuffer::MetaData::getSimdLength(ItemType itemType, int maxSimdLength)
+{
   using namespace Platform::Cpu;
   SimdFeatures commonSimdFeatures = SimdFeature::Abs | SimdFeature::MulSign | SimdFeature::InitFromUint8;
-  switch (m_itemType)
+  switch (itemType)
   {
   case Int16:
-    setSimdLength(Platform::Cpu::SimdDetector<int16_t>::maxSimdLength(commonSimdFeatures));
+    return detectSimdLength<int16_t>(commonSimdFeatures, maxSimdLength);
     break;
   case Int32:
-    setSimdLength(Platform::Cpu::SimdDetector<int32_t>::maxSimdLength(commonSimdFeatures | Multiplication));
+    return detectSimdLength<int32_t>(commonSimdFeatures | Multiplication, maxSimdLength);
     break;
   }
+
+  assert(false);
+  return 1;
 }
 
 bool EncoderBuffer::MetaData::setSimdLength(int simdLength)

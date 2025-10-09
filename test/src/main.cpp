@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 
@@ -146,6 +147,8 @@ static int usage()
     "\t-t | --threads <count>     - number of threads to use\n"
     "\t-n | --passes <count>      - number of test pasess\n"
     "\t-q | --quality <value>     - jpeg quality [1..100]\n"
+    "\t--force-int32              - force using int32 simd\n"
+    "\t--max-simd-bits            - max width form simd in bits\n"
     "\t--[no-]optimize-averaging  - enable/disable optimization of component averaging\n"
   );
 
@@ -166,6 +169,8 @@ static bool getOptionIntValue(int argc, char* argv[], int index, int& value)
 
 static bool parseArgs(int argc, char* argv[])
 {
+  int maxSimdBits = 0x7fffffff;
+
   for(int i = 1; i < argc; i++)
   {
     if (*argv[i] == '-')
@@ -186,6 +191,13 @@ static bool parseArgs(int argc, char* argv[])
         if (!getOptionIntValue(argc, argv, i++, quality))
           return false;
       }
+      else if (arg == "--force-int32")
+        encodingOptions.m_encoderBufferItemType = Jpeg::EncodingOptions::Int32;
+      else if (arg == "--max-simd-bits")
+      {
+        if (!getOptionIntValue(argc, argv, i++, maxSimdBits))
+          return false;
+      }
       else if (arg == "--optimize-averaging")
         encodingOptions.m_averageInRgbSpace = true;
       else if (arg == "--no-optimize-averaging")
@@ -199,6 +211,11 @@ static bool parseArgs(int argc, char* argv[])
     else
       srcImagePath = argv[i];
   }
+
+  int itemBits = encodingOptions.m_encoderBufferItemType == Jpeg::EncodingOptions::Int32 ? 32 : 16;
+  encodingOptions.m_encoderBufferMaxSimdLength = std::max(maxSimdBits / itemBits, 1);
+  encodingOptions.m_huffmanEncoderMaxSimdLength = std::max(maxSimdBits / 16, 1);
+  encodingOptions.m_byteStuffingMaxSimdLength = std::max(maxSimdBits / 8, 1);
 
   if (srcImagePath.empty())
   {
@@ -251,6 +268,11 @@ int main(int argc, char *argv[])
     const Jpeg::ImageMetaData& imageMetaData = image.m_metaData;
     Jpeg::Writer jpegWriter(&f, threadPool.get());
     jpegWriter.setQuality(quality);
+
+    Jpeg::EncodingOptions::EncoderBufferItemType itemType = jpegWriter.getEncoderBufferItemType(encodingOptions);
+    printf("encoder buffer  simd type: %sx%d\n", itemType == Jpeg::EncodingOptions::Int32 ? "int32" : "int16", jpegWriter.getEncoderBufferSimdLength(encodingOptions));
+    printf("huffman encoder simd type: int16x%d\n", jpegWriter.getHuffmanEncoderSimdLength(encodingOptions));
+    printf("byte stuffing   simd type: int8x%d\n", jpegWriter.getByteStuffingSimdLength(encodingOptions));
 
     bool result = jpegWriter.write(imageMetaData, (const uint8_t*)image.scanline(0), encodingOptions);
     assert(result);

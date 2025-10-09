@@ -41,6 +41,40 @@ bool Writer::setQuality(int quality)
   return true;
 }
 
+static EncoderBuffer::MetaData::ItemType metaDataItemType(EncodingOptions::EncoderBufferItemType type)
+{
+  switch (type)
+  {
+  case EncodingOptions::Int16:
+    return EncoderBuffer::MetaData::Int16;
+  case EncodingOptions::Int32:
+    return EncoderBuffer::MetaData::Int32;
+  }
+
+  assert(false);
+  return EncoderBuffer::MetaData::Int16;
+}
+
+EncodingOptions::EncoderBufferItemType Writer::getEncoderBufferItemType(const EncodingOptions& options) const
+{
+  return options.m_encoderBufferItemType;
+}
+
+int Writer::getEncoderBufferSimdLength(const EncodingOptions& options) const
+{
+  return EncoderBuffer::MetaData::getSimdLength(metaDataItemType(options.m_encoderBufferItemType), options.m_encoderBufferMaxSimdLength);
+}
+
+int Writer::getHuffmanEncoderSimdLength(const EncodingOptions& options) const
+{
+  return HuffmanEncoderOptions(options.m_huffmanEncoderMaxSimdLength, options.m_byteStuffingMaxSimdLength).m_encoderSimdLength;
+}
+
+int Writer::getByteStuffingSimdLength(const EncodingOptions& options) const
+{
+  return HuffmanEncoderOptions(options.m_huffmanEncoderMaxSimdLength, options.m_byteStuffingMaxSimdLength).m_byteStuffingSimdLength;
+}
+
 bool Writer::write(const ImageMetaData& imageMetaData, const uint8_t* pixels, const EncodingOptions& options)
 {
   if (!m_stream)
@@ -218,7 +252,8 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
     componentInfo.push_back(info);
   }
 
-  EncoderBuffer::MetaData encoderBufferMetaData(componentInfo);
+  EncoderBuffer::MetaData encoderBufferMetaData(componentInfo, metaDataItemType(options.m_encoderBufferItemType), options.m_encoderBufferMaxSimdLength);
+  HuffmanEncoderOptions huffmanEncoderOptions(options.m_huffmanEncoderMaxSimdLength, options.m_byteStuffingMaxSimdLength);
   int bufferSimdBlocks = 1;
 #ifndef TRANSPOSED_SIMD_BUFFER
   bufferSimdBlocks = encoderBufferMetaData.computeImageSizeInMcu(imageMetaData.m_size).m_width;
@@ -243,7 +278,8 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
   };
   LastBufferInfo* threadLastBufferInfo = new LastBufferInfo[nThreads];
 
-  ThreadPool::WorkerFunction worker = [this, imageMetaData, pixels, options, &encoder /* by reference to keep alignment */, encoderBufferMetaData, bufferSimdBlocks, quantizationBuffer, blocksPerBuffer, threadLastBufferInfo, &compressedParts](int threadIndex, int64_t i0, int64_t i1)
+  ThreadPool::WorkerFunction worker = [this, imageMetaData, pixels, options, huffmanEncoderOptions, &encoder /* by reference to keep alignment */,
+    encoderBufferMetaData, bufferSimdBlocks, quantizationBuffer, blocksPerBuffer, threadLastBufferInfo, &compressedParts](int threadIndex, int64_t i0, int64_t i1)
     {
       EncoderBuffer encoderBuffer(encoderBufferMetaData, bufferSimdBlocks);
       std::vector<int> lastDc(encoderBufferMetaData.m_components.size(), 0);
@@ -282,7 +318,7 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
       }
 
       Encoder::BitBuffer& compressionBuffer = compressedParts[threadIndex];
-      Encoder::reserveEstimatedBitCount(compressionBuffer, encoderBufferMetaData, (i1 - i0 + 1) * bufferMcuCount, m_quality);
+      Encoder::reserveEstimatedBitCount(compressionBuffer, encoderBufferMetaData, (i1 - i0 + 1) * bufferMcuCount, m_quality, huffmanEncoderOptions);
 
       for (int i = (int)i0; i < i1; i++)
       {
@@ -290,7 +326,7 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
         assert(count == bufferMcuCount);
         encoder.quantize(encoderBuffer, imageMetaData, pixels, mcuIndices, quantized, count, options);
         encoder.optimizeDummyBlocks(encoderBufferMetaData, imageSize, imageSizeInMcu, mcuIndices, quantized, count);
-        encoder.encode(encoderBufferMetaData, compressionBuffer, lastDc, quantized, count);
+        encoder.encode(encoderBufferMetaData, compressionBuffer, lastDc, quantized, count, huffmanEncoderOptions);
       }
 
       LastBufferInfo& lastBufferInfo = threadLastBufferInfo[threadIndex];
@@ -304,7 +340,7 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
         lastBufferInfo.computed = true;
       }
       lastBufferInfo.mutex.unlock();
-      encoder.encode(encoderBufferMetaData, compressionBuffer, lastDc, lastBufferQuantized, encoderBuffer.getBufferMcuIndices(imageSizeInMcu, (int)i1, nullptr));
+      encoder.encode(encoderBufferMetaData, compressionBuffer, lastDc, lastBufferQuantized, encoderBuffer.getBufferMcuIndices(imageSizeInMcu, (int)i1, nullptr), huffmanEncoderOptions);
     };
 
   if (m_threadPool && nThreads > 1)
@@ -317,16 +353,16 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
   releaseQuantizationBuffer(encoderBufferMetaData.m_simdLength, quantizationBuffer);
   quantizationBuffer = nullptr;
 
-  Encoder::BitBuffer compressed = Encoder::BitBuffer::merge(compressedParts, 0.1);
+  Encoder::BitBuffer compressed = Encoder::BitBuffer::merge(compressedParts, 0.1, huffmanEncoderOptions);
   if (!compressed.m_bits)
     return false;
 
   compressed.m_bitCount = HuffmanEncoder::padToByteBoundary(compressed.m_bits, compressed.m_bitCount);
-  int64_t bytesToAdd = HuffmanEncoder::byteStuffingByteCount(compressed.m_bits, compressed.m_bitCount);
-  if (!compressed.reserve(bytesToAdd * 8))
+  int64_t bytesToAdd = HuffmanEncoder::byteStuffingByteCount(compressed.m_bits, compressed.m_bitCount, huffmanEncoderOptions);
+  if (!compressed.reserve(bytesToAdd * 8, huffmanEncoderOptions))
     return false;
 
-  compressed.m_bitCount = HuffmanEncoder::byteStuffing(compressed.m_bits, compressed.m_bitCount, bytesToAdd);
+  compressed.m_bitCount = HuffmanEncoder::byteStuffing(compressed.m_bits, compressed.m_bitCount, bytesToAdd, huffmanEncoderOptions);
 
   assert(compressed.m_bitCount % 8 == 0);
   int64_t written = m_stream->writeJpegBytes((char*)compressed.m_bits, compressed.m_bitCount / 8);
