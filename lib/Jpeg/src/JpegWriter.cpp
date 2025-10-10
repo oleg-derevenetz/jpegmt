@@ -1,5 +1,6 @@
 #include <Jpeg/JpegWriter.h>
 
+#include <algorithm>
 #include <mutex>
 
 #include <Helper/Platform/Cpu/simd.h>
@@ -192,13 +193,16 @@ namespace
   };
 }
 
-int16_t (*allocQuantizationBuffer(const EncoderBuffer::MetaData& bufferMetaData, int count))[Dct::BlockSize2]
+int16_t (*allocQuantizationBuffer(const EncoderBuffer::MetaData& bufferMetaData, const HuffmanEncoderOptions& huffmanEncoderOptions, int count))[Dct::BlockSize2]
 {
+  int simdLength;
   switch(bufferMetaData.m_itemType)
   {
   case EncoderBufferItemType::Int16:
-    return SimdFunctionChooser<AllocQuantizationBufferCallable>::perform<int16_t>(bufferMetaData.m_simdLength, count);
+    simdLength = std::max(bufferMetaData.m_simdLength, huffmanEncoderOptions.m_encoderSimdLength);
+    return SimdFunctionChooser<AllocQuantizationBufferCallable>::perform<int16_t>(simdLength, count);
   case EncoderBufferItemType::Int32:
+    simdLength = std::max(bufferMetaData.m_simdLength, huffmanEncoderOptions.m_encoderSimdLength / 2);
     return SimdFunctionChooser<AllocQuantizationBufferCallable>::perform<int32_t>(bufferMetaData.m_simdLength, count);
   }
 
@@ -206,14 +210,17 @@ int16_t (*allocQuantizationBuffer(const EncoderBuffer::MetaData& bufferMetaData,
   return nullptr;
 }
 
-void releaseQuantizationBuffer(const EncoderBuffer::MetaData& bufferMetaData, int16_t (*buffer)[Dct::BlockSize2])
+void releaseQuantizationBuffer(const EncoderBuffer::MetaData& bufferMetaData, const HuffmanEncoderOptions& huffmanEncoderOptions, int16_t (*buffer)[Dct::BlockSize2])
 {
+  int simdLength;
   switch (bufferMetaData.m_itemType)
   {
   case EncoderBufferItemType::Int16:
-    return SimdFunctionChooser<ReleaseQuantizationBufferCallable>::perform<int16_t>(bufferMetaData.m_simdLength, buffer);
+    simdLength = std::max(bufferMetaData.m_simdLength, huffmanEncoderOptions.m_encoderSimdLength);
+    return SimdFunctionChooser<ReleaseQuantizationBufferCallable>::perform<int16_t>(simdLength, buffer);
   case EncoderBufferItemType::Int32:
-    return SimdFunctionChooser<ReleaseQuantizationBufferCallable>::perform<int32_t>(bufferMetaData.m_simdLength, buffer);
+    simdLength = std::max(bufferMetaData.m_simdLength, huffmanEncoderOptions.m_encoderSimdLength / 2);
+    return SimdFunctionChooser<ReleaseQuantizationBufferCallable>::perform<int32_t>(simdLength, buffer);
   }
   assert(false);
 }
@@ -272,7 +279,7 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
   int nThreads = m_threadPool ? m_threadPool->computeThreadCount(bufferCount) : 1;
   std::vector<Encoder::BitBuffer> compressedParts(nThreads);
   int blocksPerBuffer = bufferSimdBlocks * encoderBufferMetaData.m_simdLength * encoderBufferMetaData.getMcuBlockCount();
-  int16_t (*quantizationBuffer)[Dct::BlockSize2] = allocQuantizationBuffer(encoderBufferMetaData, blocksPerBuffer * nThreads * 2);
+  int16_t (*quantizationBuffer)[Dct::BlockSize2] = allocQuantizationBuffer(encoderBufferMetaData, huffmanEncoderOptions, blocksPerBuffer * nThreads * 2);
   struct LastBufferInfo
   {
     std::mutex mutex;
@@ -352,7 +359,7 @@ bool Writer::compressAndWrite(const ImageMetaData& imageMetaData, const uint8_t*
 
   delete[] threadLastBufferInfo;
   threadLastBufferInfo = nullptr;
-  releaseQuantizationBuffer(encoderBufferMetaData, quantizationBuffer);
+  releaseQuantizationBuffer(encoderBufferMetaData, huffmanEncoderOptions, quantizationBuffer);
   quantizationBuffer = nullptr;
 
   Encoder::BitBuffer compressed = Encoder::BitBuffer::merge(compressedParts, 0.1, huffmanEncoderOptions);
