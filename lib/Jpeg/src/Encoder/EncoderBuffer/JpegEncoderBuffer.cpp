@@ -199,7 +199,7 @@ struct SimdBufferAllocator
   template <typename T, int SimdLength>
   static void* perform(int count)
   {
-    return EncoderBuffer::allocSimdBuffer<T, SimdLength>(count);
+    return EncoderBuffer::allocSimdBuffer<T, SimdLength>(count * SimdLength);
   }
 };
 

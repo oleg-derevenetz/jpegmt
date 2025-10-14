@@ -9,7 +9,7 @@ namespace Jpeg
 
 template <> void* EncoderBuffer::allocSimdBuffer<int16_t, 16>(int count)
 {
-  return Platform::Cpu::SIMD<int16_t, 16>::template allocMemory<int16_t[Dct::BlockSize2 * 16]>(count);
+  return Platform::Cpu::SIMD<int16_t, 16>::template allocMemory<int16_t[Dct::BlockSize2]>(count);
 }
 
 template <> void EncoderBuffer::releaseSimdBuffer<int16_t, 16>(void* buffer)
@@ -166,7 +166,7 @@ void exportBlocksImplementation<int16_t, 16>(const EncoderBuffer::MetaData& meta
 
 template <> void* EncoderBuffer::allocSimdBuffer<int16_t, 16>(int count)
 {
-  return malloc(sizeof(int16_t) * Dct::BlockSize2 * 16 * count);
+  return malloc(sizeof(int16_t) * Dct::BlockSize2 * count);
 }
 
 template <> void EncoderBuffer::releaseSimdBuffer<int16_t, 16>(void* buffer)

@@ -203,7 +203,7 @@ int16_t (*allocQuantizationBuffer(const EncoderBuffer::MetaData& bufferMetaData,
     return SimdFunctionChooser<AllocQuantizationBufferCallable>::perform<int16_t>(simdLength, count);
   case EncoderBufferItemType::Int32:
     simdLength = std::max(bufferMetaData.m_simdLength, huffmanEncoderOptions.m_encoderSimdLength / 2);
-    return SimdFunctionChooser<AllocQuantizationBufferCallable>::perform<int32_t>(bufferMetaData.m_simdLength, count);
+    return SimdFunctionChooser<AllocQuantizationBufferCallable>::perform<int32_t>(simdLength, count);
   }
 
   assert(false);
