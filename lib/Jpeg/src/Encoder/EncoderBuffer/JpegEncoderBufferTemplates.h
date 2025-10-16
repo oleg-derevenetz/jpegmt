@@ -583,7 +583,7 @@ static void rgbaToYcbr411(const ImageMetaData& imageMetaData, const uint8_t* rgb
     {
       alignas(32) int32_t pair[2][Dct::BlockSize * SimdLength * 2];
 
-      if (mcu[0].m_y <= mcu[wrapMcuCount - 1].m_y + 1)
+      if (mcu[0].m_y + 1 >= mcu[wrapMcuCount - 1].m_y)
       {
         int wrappedMcuIndex = 0;
         for (; wrappedMcuIndex < wrapMcuCount - 1; wrappedMcuIndex++)
