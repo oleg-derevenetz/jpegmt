@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.16)
 
 project(jpegtest CXX)
 
@@ -19,19 +19,19 @@ list(APPEND TEST_SOURCES
     src/ImageUtils.h
 )
 
-set(LIBJPEG_PATH "" CACHE PATH "directory of jpeg/jpeg-turbo library installation")
-find_package(libjpeg-turbo PATHS "${LIBJPEG_PATH}")
-if(libjpeg-turbo_FOUND)
+find_package(Threads REQUIRED)
+
+find_package(JPEG)
+if(JPEG_FOUND)
     add_definitions(-DWITH_LIBJPEG)  
-    include_directories(${libjpeg-turbo_INCLUDE_DIRS})
+    include_directories(${JPEG_INCLUDE_DIRS})
     list(APPEND TEST_SOURCES
         src/JpegLibWrapper.cpp
         src/JpegLibWrapper.h
     )  
 endif()
 
-set(LIBPNG_PATH "" CACHE PATH "directory of png library installation")
-find_package(PNG PATHS "${LIBPNG_PATH}")
+find_package(PNG)
 if(PNG_FOUND)
     add_definitions(-DWITH_LIBPNG)  
     include_directories(${PNG_INCLUDE_DIRS})
@@ -41,9 +41,11 @@ add_executable(jpegtest ${TEST_SOURCES})
 
 target_link_libraries(jpegtest jpegmt helper) 
 
-if(libjpeg-turbo_FOUND)
-    target_link_libraries(jpegtest libjpeg-turbo::jpeg-static) 
+if(JPEG_FOUND)
+    target_link_libraries(jpegtest JPEG::JPEG) 
 endif()
 if(PNG_FOUND)
-    target_link_libraries(jpegtest PNG::png_static) 
+    target_link_libraries(jpegtest PNG::PNG) 
 endif()
+
+target_link_libraries(jpegtest Threads::Threads) 

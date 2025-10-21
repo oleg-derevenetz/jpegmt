@@ -1,6 +1,7 @@
 #include "JpegLibWrapper.h"
 
 #include <cmath>
+#include <cstdio>
 
 #include <Jpeg/JpegImageMetaData.h>
 #include <Jpeg/JpegWriter.h>
