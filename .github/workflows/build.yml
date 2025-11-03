@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  build-linux:
+    strategy:
+      matrix:
+        cxx:
+        - g++
+        - clang++
+    name: Build on Linux ${{ matrix.cxx }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: recursive
+    - name: Install dependencies
+      run: |
+        sudo apt-get -y update
+        sudo apt-get -y install libjpeg-dev libpng-dev
+    - name: Build
+      env:
+        CXX: ${{ matrix.cxx }}
+      run: |
+        cmake -B build -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        cmake --build build --config Debug
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: recursive
+    - name: Install dependencies
+      run: |
+        vcpkg.exe --triplet x64-windows install libjpeg-turbo libpng
+    - name: Build
+      run: |
+        cmake.exe -B build -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+                           -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT\\scripts\\buildsystems\\vcpkg.cmake" \
+                           -DVCPKG_TARGET_TRIPLET=x64-windows
+        cmake.exe --build build --config Debug
